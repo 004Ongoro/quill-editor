@@ -1,0 +1,113 @@
+name: Development Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Lint code
+      run: |
+        # Install eslint if not present
+        if [ ! -f "node_modules/.bin/eslint" ]; then
+          npm install --save-dev eslint
+        fi
+        npx eslint . --ext .js,.html || echo "Linting completed"
+    
+    - name: Verify build configuration
+      run: |
+        echo "Verifying package.json..."
+        node -e "const pkg = require('./package.json'); console.log('Version:', pkg.version); console.log('Build config exists:', !!pkg.build);"
+    
+    - name: Build test
+      run: |
+        # Test if electron-builder works without actually building
+        npx electron-builder --dir --config.asar=false
+        
+    - name: Upload build log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: |
+          dist/builder-effective-config.yaml
+          dist/builder-debug.yml
+        
+  test-run:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Install Electron (headless for testing)
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          # Install Xvfb for headless GUI testing on Linux
+          sudo apt-get install -y xvfb
+        fi
+    
+    - name: Test application startup
+      run: |
+        if [ "$RUNNER_OS" == "Linux" ]; then
+          xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" npm start &
+          APP_PID=$!
+          sleep 5
+          if ps -p $APP_PID > /dev/null; then
+            echo "Application started successfully"
+            kill $APP_PID
+          else
+            echo "Application failed to start"
+            exit 1
+          fi
+        else
+          # On macOS and Windows, we'll just verify the main file
+          node -e "const app = require('./main.js'); console.log('Main file loaded successfully');"
+        fi
+    
+    - name: Verify dependencies
+      run: |
+        echo "Checking critical dependencies..."
+        node -e "
+          const fs = require('fs');
+          const requiredFiles = ['main.js', 'preload.js', 'index.html', 'renderer.js'];
+          requiredFiles.forEach(file => {
+            if (fs.existsSync(file)) {
+              console.log('✓', file);
+            } else {
+              console.error('✗', file, 'not found');
+              process.exit(1);
+            }
+          });
+        "

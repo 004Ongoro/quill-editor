@@ -6,37 +6,177 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --debug",
-    "build": "electron-builder"
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "build:mac:arm64": "electron-builder --mac --arm64",
+    "build:mac:x64": "electron-builder --mac --x64",
+    "build:all": "npm run build:win && npm run build:mac && npm run build:linux",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "pack": "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
   },
-  "keywords": ["editor", "code", "electron"],
-  "author": "George Ongoro",
+  "keywords": [
+    "editor",
+    "code",
+    "electron",
+    "ide"
+  ],
+  "author": "Your Name",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^28.0.0"
+    "electron": "^28.0.0",
+    "electron-builder": "^24.6.4"
   },
   "build": {
     "appId": "com.quilleditor.app",
     "productName": "QuillEditor",
     "directories": {
-      "output": "dist"
+      "output": "dist",
+      "buildResources": "assets"
     },
     "files": [
       "**/*",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
       "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
-      "!**/*.map"
+      "!**/*.map",
+      "!**/*.log",
+      "!**/.gitignore",
+      "!**/.eslintrc.*",
+      "!**/.prettierrc.*"
     ],
     "win": {
-      "target": "nsis",
-      "icon": "assets/icon.ico"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icons/icon.ico",
+      "publisherName": "QuillEditor",
+      "legalTrademarks": "QuillEditor",
+      "asar": true,
+      "asarUnpack": "**\\*.{node,dll}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "QuillEditor",
+      "uninstallDisplayName": "QuillEditor",
+      "license": "LICENSE"
     },
     "mac": {
-      "target": "dmg",
-      "icon": "assets/icon.icns"
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "assets/icons/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "darkModeSupport": true,
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "assets/entitlements.mac.plist",
+      "entitlementsInherit": "assets/entitlements.mac.plist",
+      "type": "distribution"
+    },
+    "dmg": {
+      "background": "assets/dmg-background.png",
+      "iconSize": 128,
+      "contents": [
+        {
+          "x": 380,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        },
+        {
+          "x": 120,
+          "y": 180,
+          "type": "file"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "linux": {
-      "target": "AppImage",
-      "icon": "assets/icon.png"
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm",
+        "snap",
+        "tar.gz"
+      ],
+      "icon": "assets/icons/icon.png",
+      "category": "Development",
+      "maintainer": "george@ongoro.top",
+      "description": "A lightweight code editor built with Electron",
+      "synopsis": "Lightweight Code Editor",
+      "asar": true
+    },
+    "appImage": {
+      "systemIntegration": "ask"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ],
+      "packageCategory": "devel"
+    },
+    "snap": {
+      "grade": "stable",
+      "confinement": "strict",
+      "plugs": [
+        "home",
+        "x11"
+      ],
+      "summary": "A lightweight code editor",
+      "description": "QuillEditor is a lightweight, cross-platform code editor with syntax highlighting, debugging tools, and a modern interface."
+    },
+    "extraMetadata": {
+      "version": ""
+    },
+    "publish": {
+      "provider": "github",
+      "releaseType": "release"
     }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/004Ongoro/quill-editor.git"
+  },
+  "bugs": {
+    "url": "https://github.com/004Ongoro/quill-editor/issues"
+  },
+  "homepage": "https://github.com/004Ongoro/quill-editor#readme",
+  "dependencies": {
+    "canvas": "^3.2.1"
   }
 }

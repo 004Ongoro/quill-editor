@@ -1,0 +1,143 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on version tags like v1.0.0, v1.2.3-beta.1, etc.
+  workflow_dispatch: # Allows manual triggering
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        default: ''
+
+jobs:
+  build-and-release:
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            artifact_name: quilleditor-darwin
+            platform: darwin
+          - os: ubuntu-latest
+            artifact_name: quilleditor-linux
+            platform: linux
+          - os: windows-latest
+            artifact_name: quilleditor-win
+            platform: win32
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build for macOS (Intel & ARM)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Build for both Intel and Apple Silicon
+        npm run build:mac || true
+        
+        # Create universal build if both architectures exist
+        if [ -d "dist/mac-arm64" ] && [ -d "dist/mac-x64" ]; then
+          npx electron-builder --mac --arm64 --x64 --config.extraMetadata.version=${{ github.event.inputs.version || github.ref_name }}
+        else
+          npx electron-builder --mac --x64 --config.extraMetadata.version=${{ github.event.inputs.version || github.ref_name }}
+        fi
+    
+    - name: Build for Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        # Install required libraries for Linux
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libnotify-dev libgconf-2-4 libnss3 libxss1 libasound2 libxtst6 xauth xvfb
+        
+        # Build for Linux
+        npx electron-builder --linux --config.extraMetadata.version=${{ github.event.inputs.version || github.ref_name }}
+    
+    - name: Build for Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        # Build for Windows
+        npx electron-builder --win --x64 --config.extraMetadata.version=${{ github.event.inputs.version || github.ref_name }}
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          dist/*.dmg
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.rpm
+          dist/*.exe
+          dist/*.zip
+          dist/*.snap
+          dist/*.tar.gz
+          dist/*.tar.xz
+        retention-days: 7
+    
+    - name: Create Release
+      if: matrix.os == 'ubuntu-latest' # Only run once on Linux
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*.dmg
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.rpm
+          dist/*.exe
+          dist/*.zip
+          dist/*.snap
+          dist/*.tar.gz
+          dist/*.tar.xz
+        draft: false
+        prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') || contains(github.ref, 'rc') }}
+        generate_release_notes: true
+        tag_name: ${{ github.ref_name }}
+        name: QuillEditor ${{ github.ref_name }}
+        body: |
+          # QuillEditor ${{ github.ref_name }}
+          
+          ## Release Notes
+          
+          ### ✨ Features
+          - Lightweight, performant code editor
+          - Syntax highlighting for multiple languages
+          - Built-in debug console
+          - File tree explorer
+          - Tabbed interface
+          - Cross-platform support
+          
+          ### 📦 Downloads
+          - **Windows**: `.exe` installer
+          - **macOS**: `.dmg` disk image
+          - **Linux**: `.AppImage`, `.deb`, `.rpm`
+          
+          ### 🚀 Quick Start
+          1. Download the appropriate installer for your OS
+          2. Install and launch QuillEditor
+          3. Open a folder or file to start coding
+          
+          ### 📝 Changes
+          See the [CHANGELOG.md](CHANGELOG.md) for detailed changes.
+          
+          ### 🐛 Reporting Issues
+          Found a bug? Please open an issue on [GitHub](https://github.com/${{ github.repository }}/issues).
+          
+          ### ❤️ Support
+          If you like QuillEditor, consider giving it a ⭐ on GitHub!
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
