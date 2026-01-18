@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuillEditor - Lightweight Code Editor</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Activity Bar (Vertical Icons) -->
+        <div class="activity-bar">
+            <div class="activity-item" id="openFolderActivity" title="Open Folder (Ctrl+Shift+O)">
+                <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="activity-item active" data-panel="files" title="Explorer (Ctrl+Shift+E)">
+                <i class="fas fa-folder"></i>
+            </div>
+            <div class="activity-item" data-panel="search" title="Search (Ctrl+Shift+F)">
+                <i class="fas fa-search"></i>
+            </div>
+            <div class="activity-item" data-panel="debug" title="Debug (Ctrl+Shift+D)">
+                <i class="fas fa-bug"></i>
+            </div>
+            <div class="activity-item" data-panel="git" title="Source Control (Ctrl+Shift+G)">
+                <i class="fas fa-code-branch"></i>
+            </div>
+            <div class="activity-item" data-panel="settings" title="Settings (Ctrl+,)">
+                <i class="fas fa-cog"></i>
+            </div>
+        </div>
+        
+        <!-- Sidebar Panels -->
+        <div class="sidebar">
+            <!-- Files Panel -->
+            <div class="sidebar-panel active" id="files-panel">
+                <div class="panel-header">
+                    <h3>EXPLORER</h3>
+                    <div class="panel-actions">
+                        <button class="panel-action-btn" id="newFileBtn" title="New File (Ctrl+N)">
+                            <i class="fas fa-file"></i>
+                        </button>
+                        <button class="panel-action-btn" id="newFolderBtn" title="New Folder">
+                            <i class="fas fa-folder-plus"></i>
+                        </button>
+                        <button class="panel-action-btn" id="refreshExplorer" title="Refresh">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <button class="panel-action-btn" id="collapseAllBtn" title="Collapse All">
+                            <i class="fas fa-compress-arrows-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="open-editors-section">
+                        <div class="section-header">
+                            <span>OPEN EDITORS</span>
+                            <button class="section-action" id="closeAllTabs" title="Close All">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="open-editors-list" id="openEditorsList">
+                            <!-- Open tabs will be added here -->
+                        </div>
+                    </div>
+                    
+                    <div class="workspace-section">
+                        <div class="section-header">
+                            <span>WORKSPACE</span>
+                            <div class="workspace-input-container">
+                                <input type="text" id="workspacePath" placeholder="Enter file path..." 
+                                       title="Type a file path to open/create">
+                                <button id="goToPath" class="section-action" title="Go">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="tree-view" id="treeViewContainer">
+                            <!-- Tree view will be populated by JavaScript -->
+                            <div class="tree-empty">
+                                <i class="fas fa-folder-open"></i>
+                                <p>No folder opened</p>
+                                <button id="openFolderBtn" class="btn btn-small">
+                                    <i class="fas fa-folder-open"></i> Open Folder
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Search Panel -->
+            <div class="sidebar-panel" id="search-panel">
+                <div class="panel-header">
+                    <h3>SEARCH</h3>
+                </div>
+                <div class="panel-content">
+                    <div class="search-input-container">
+                        <input type="text" id="searchInput" placeholder="Search (Ctrl+F)">
+                        <button class="btn btn-small" id="searchBtn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <div class="search-results" id="searchResults">
+                        <div class="empty-state">
+                            <i class="fas fa-search"></i>
+                            <p>No search results</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Debug Panel -->
+            <div class="sidebar-panel" id="debug-panel">
+                <div class="panel-header">
+                    <h3>DEBUG</h3>
+                </div>
+                <div class="panel-content">
+                    <div class="debug-controls">
+                        <button id="debugStart" class="btn btn-success btn-small">
+                            <i class="fas fa-play"></i> Start Debugging
+                        </button>
+                        <button id="debugStop" class="btn btn-danger btn-small">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                    </div>
+                    <div class="breakpoints-list">
+                        <h4>Breakpoints</h4>
+                        <div id="breakpointsContainer">
+                            <!-- Breakpoints will be added here -->
+                        </div>
+                    </div>
+                    <div class="watch-expressions">
+                        <h4>Watch</h4>
+                        <div id="watchContainer">
+                            <!-- Watch expressions will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Git Panel -->
+            <div class="sidebar-panel" id="git-panel">
+                <div class="panel-header">
+                    <h3>SOURCE CONTROL</h3>
+                </div>
+                <div class="panel-content">
+                    <div class="git-empty">
+                        <i class="fas fa-code-branch"></i>
+                        <p>Git integration not available</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Settings Panel -->
+            <div class="sidebar-panel" id="settings-panel">
+                <div class="panel-header">
+                    <h3>SETTINGS</h3>
+                </div>
+                <div class="panel-content">
+                    <div class="settings-section">
+                        <h4>Editor</h4>
+                        <div class="setting-item">
+                            <label for="fontSize">Font Size:</label>
+                            <input type="number" id="fontSize" min="10" max="30" value="14">
+                        </div>
+                        <div class="setting-item">
+                            <label for="tabSize">Tab Size:</label>
+                            <input type="number" id="tabSize" min="2" max="8" value="4">
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="wordWrap" checked>
+                                Word Wrap
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h4>Theme</h4>
+                        <select id="themeSelect">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                            <option value="high-contrast">High Contrast</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Editor Area -->
+        <div class="main-area">
+            <!-- Tab Bar with Context Menu -->
+            <div class="tab-bar" id="tabBar">
+                <!-- Tabs will be dynamically added here -->
+                <div class="tab-spacer"></div>
+                <div class="tab-actions">
+                    <button id="addTabBtn" class="tab-action-btn" title="New Tab">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Editor Container -->
+            <div class="editor-container">
+                <div class="line-numbers" id="lineNumbers">1</div>
+                <textarea 
+                    id="codeEditor" 
+                    class="code-editor" 
+                    spellcheck="false"
+                    placeholder="Start typing your code here..."
+                    autofocus></textarea>
+                <div class="editor-overlay" id="syntaxHighlight"></div>
+            </div>
+            
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <div class="status-bar-left">
+                    <span class="status-item" id="cursorPosition">
+                        <i class="fas fa-i-cursor"></i> Ln 1, Col 1
+                    </span>
+                    <span class="status-item" id="selectionInfo">
+                        <i class="fas fa-highlighter"></i> 0 selected
+                    </span>
+                    <span class="status-item" id="fileEncoding">
+                        <i class="fas fa-file-code"></i> UTF-8
+                    </span>
+                </div>
+                <div class="status-bar-center">
+                    <span class="status-item" id="languageInfo">
+                        <i class="fas fa-code"></i> JavaScript
+                    </span>
+                    <span class="status-item" id="lineCount">
+                        <i class="fas fa-bars"></i> 1 line
+                    </span>
+                    <span class="status-item" id="charCount">
+                        <i class="fas fa-font"></i> 0 chars
+                    </span>
+                </div>
+                <div class="status-bar-right">
+                    <span class="status-item" id="fileInfo">
+                        <i class="fas fa-file"></i> Untitled-1.js
+                    </span>
+                    <span class="status-item" id="fileStatus">
+                        <i class="fas fa-circle" style="color: #27ae60;"></i> Saved
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Console Panel -->
+        <div class="console-panel">
+            <div class="console-header">
+                <div class="console-tabs">
+                    <button class="console-tab active" data-console="output">
+                        <i class="fas fa-terminal"></i> OUTPUT
+                    </button>
+                    <button class="console-tab" data-console="problems">
+                        <i class="fas fa-exclamation-circle"></i> PROBLEMS
+                    </button>
+                    <button class="console-tab" data-console="debug">
+                        <i class="fas fa-bug"></i> DEBUG CONSOLE
+                    </button>
+                </div>
+                <div class="console-actions">
+                    <button id="clearConsoleBtn" class="btn btn-small">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                    <button id="toggleConsoleBtn" class="btn btn-small">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="console-content active" id="outputConsole">
+                <div class="console-output" id="consoleOutput">
+                    <div class="console-message info">
+                        <i class="fas fa-info-circle"></i> Welcome to QuillEditor!
+                    </div>
+                </div>
+            </div>
+            <div class="console-content" id="problemsConsole">
+                <div class="problems-list" id="problemsList">
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle"></i>
+                        <p>No problems have been detected in the workspace.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="console-content" id="debugConsole">
+                <div class="debug-console" id="debugConsoleOutput">
+                    <div class="empty-state">
+                        <i class="fas fa-bug"></i>
+                        <p>Debug console is empty. Start debugging to see output.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Context Menu (Hidden) -->
+        <div class="context-menu" id="tabContextMenu">
+            <div class="context-menu-item" data-action="close">
+                <i class="fas fa-times"></i> Close
+            </div>
+            <div class="context-menu-item" data-action="close-others">
+                <i class="fas fa-times-circle"></i> Close Others
+            </div>
+            <div class="context-menu-item" data-action="close-all">
+                <i class="fas fa-window-close"></i> Close All
+            </div>
+            <div class="context-divider"></div>
+            <div class="context-menu-item" data-action="save">
+                <i class="fas fa-save"></i> Save
+            </div>
+            <div class="context-menu-item" data-action="save-as">
+                <i class="fas fa-save"></i> Save As...
+            </div>
+        </div>
+        
+        <div class="context-menu" id="editorContextMenu">
+            <div class="context-menu-item" data-action="cut">
+                <i class="fas fa-cut"></i> Cut
+            </div>
+            <div class="context-menu-item" data-action="copy">
+                <i class="fas fa-copy"></i> Copy
+            </div>
+            <div class="context-menu-item" data-action="paste">
+                <i class="fas fa-paste"></i> Paste
+            </div>
+            <div class="context-divider"></div>
+            <div class="context-menu-item" data-action="select-all">
+                <i class="fas fa-mouse-pointer"></i> Select All
+            </div>
+            <div class="context-divider"></div>
+            <div class="context-menu-item" data-action="find">
+                <i class="fas fa-search"></i> Find
+            </div>
+            <div class="context-menu-item" data-action="replace">
+                <i class="fas fa-exchange-alt"></i> Replace
+            </div>
+            <div class="context-divider"></div>
+            <div class="context-menu-item" data-action="run">
+                <i class="fas fa-play"></i> Run Code
+            </div>
+            <div class="context-menu-item" data-action="debug">
+                <i class="fas fa-bug"></i> Start Debugging
+            </div>
+        </div>
+    </div>
+    
+    <script src="renderer.js"></script>
+    <script src="editor/editor.js"></script>
+    <script src="editor/syntax.js"></script>
+    <script src="editor/debugger.js"></script>
+    <script src="editor/treeview.js"></script>
+    <script src="editor/contextmenu.js"></script>
+</body>
+</html>
