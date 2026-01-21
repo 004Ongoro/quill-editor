@@ -151,6 +151,7 @@ async function openFolder() {
         try {
             const items = fs.readdirSync(folderPath, { withFileTypes: true });
             mainWindow.webContents.send('folder-opened', { 
+                success: true,
                 path: folderPath,
                 items: items.map(item => ({
                     name: item.name,
@@ -346,4 +347,38 @@ ipcMain.handle('open-folder-dialog', async (event) => {
   }
   
   return { success: false, canceled: true };
+});
+
+ipcMain.on('show-explorer-context-menu', (event, data) => {
+  const template = [];
+
+  if (data.isDirectory) {
+    template.push(
+      {
+        label: 'New File',
+        click: () => event.sender.send('explorer-context-action', 'new-file')
+      },
+      {
+        label: 'New Folder',
+        click: () => event.sender.send('explorer-context-action', 'new-folder')
+      }
+    );
+  }
+
+  if (!data.isWorkspace) {
+    template.push(
+      { type: 'separator' },
+      {
+        label: 'Rename',
+        click: () => event.sender.send('explorer-context-action', 'rename')
+      },
+      {
+        label: 'Delete',
+        click: () => event.sender.send('explorer-context-action', 'delete')
+      }
+    );
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  menu.popup(BrowserWindow.fromWebContents(event.sender));
 });

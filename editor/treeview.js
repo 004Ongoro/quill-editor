@@ -1,12 +1,16 @@
 class TreeViewManager {
-  constructor() {
-    this.container = document.getElementById('treeViewContainer');
+  constructor(container) {
+    this.container = container;
+    this.treeData = [];
     this.currentWorkspace = null;
-    this.tree = [];
+
+    this.selected = null;
     this.expanded = new Set();
 
     this.bindToolbar();
     this.bindFolderEvents();
+    this.initWorkspaceHandlers();
+    this.initContextActions();
   }
 
   /* ---------------- Toolbar ---------------- */
@@ -18,27 +22,109 @@ class TreeViewManager {
     document.getElementById('refreshExplorer')?.addEventListener('click', () => this.refresh());
     document.getElementById('collapseAllBtn')?.addEventListener('click', () => this.collapseAll());
   }
+// The below code is redudant, but i prefer 
+// to just comment it just incase, because 
+// it was working before
 
-  bindFolderEvents() {
-    window.electronAPI.onFolderOpened((_, data) => {
-      this.currentWorkspace = data.path;
-      this.tree = this.normalize(data.items);
-      this.expanded.clear();
-      this.render();
-    });
-  }
+//   bindFolderEvents() {
+//     window.electronAPI.onFolderOpened((_, data) => {
+//       this.currentWorkspace = data.path;
+//       this.treeData = this.normalize(data.items);
+//       this.expanded.clear();
+//       this.render();
+//     });
+//   }
 
   /* ---------------- Workspace ---------------- */
 
-  async openFolder() {
-    const result = await window.electronAPI.openFolderDialog();
-    if (!result.success) return;
+  initWorkspaceHandlers() {
+    this.container.addEventListener('click', e => {
+      if (e.target === this.container && this.currentWorkspace) {
+        this.selectItem({
+          path: this.currentWorkspace,
+          isDirectory: true,
+          isWorkspace: true
+        });
+      }
+    });
 
-    this.currentWorkspace = result.path;
-    this.tree = this.normalize(result.items);
-    this.expanded.clear();
+    this.container.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (!this.currentWorkspace) return;
+
+      this.selectItem({
+        path: this.currentWorkspace,
+        isDirectory: true,
+        isWorkspace: true
+      });
+
+      window.electronAPI.showExplorerContextMenu({
+        path: this.currentWorkspace,
+        isDirectory: true,
+        isWorkspace: true
+      });
+    });
+  }
+
+  selectItem(item) {
+    this.selected = item;
     this.render();
   }
+
+  getTargetDirectory() {
+    if (!this.selected) return this.currentWorkspace;
+    if (this.selected.isDirectory) return this.selected.path;
+    return this.selected.path.replace(/[/\\][^/\\]+$/, '');
+  }
+
+  /* ---------------- Context Menu ---------------- */
+
+  initContextActions() {
+    window.electronAPI.onExplorerContextAction((_, action) => {
+      if (action === 'new-file') this.newFile();
+      if (action === 'new-folder') this.newFolder();
+      if (action === 'delete') this.deleteSelected();
+      if (action === 'rename') this.renameSelected();
+    });
+  }
+
+  async deleteSelected() {
+    if (!this.selected || this.selected.isWorkspace) return;
+    if (!confirm('Delete this item?')) return;
+
+    await window.electronAPI.deleteItem(
+      this.selected.path,
+      this.selected.isDirectory
+    );
+    await this.refresh();
+  }
+
+  async renameSelected() {
+    if (!this.selected || this.selected.isWorkspace) return;
+
+    const name = prompt('New name');
+    if (!name) return;
+
+    const newPath =
+      this.selected.path.replace(/[/\\][^/\\]+$/, '/') + name;
+
+    await window.electronAPI.renameItem(this.selected.path, newPath);
+    await this.refresh();
+  }
+
+  /* ---------------- Explorer Ops ---------------- */
+
+ async openFolder() {
+  const result = await window.electronAPI.openFolderDialog();
+  if (!result || !result.success) return;
+
+  this.currentWorkspace = result.path;
+  this.treeData = this.normalize(result.items);
+  this.expanded.clear();
+  this.selected = null;
+
+  this.render();
+}
 
   async refresh() {
     if (!this.currentWorkspace) return;
@@ -46,7 +132,7 @@ class TreeViewManager {
     const result = await window.electronAPI.readDirectory(this.currentWorkspace);
     if (!result.success) return;
 
-    this.tree = this.normalize(result.items);
+    this.treeData = this.normalize(result.items);
     this.render();
   }
 
@@ -64,103 +150,120 @@ class TreeViewManager {
 
   render() {
     this.container.innerHTML = '';
-    this.tree.forEach(item => {
+    this.treeData.forEach(item => {
       this.container.appendChild(this.renderItem(item, 0));
     });
   }
 
   renderItem(item, depth) {
-    const wrapper = document.createElement('div');
-
     const row = document.createElement('div');
     row.className = 'tree-item';
     row.style.paddingLeft = `${depth * 16}px`;
 
-    row.innerHTML = `
-      <span class="toggle">${item.isDirectory ? (this.expanded.has(item.path) ? '▾' : '▸') : ''}</span>
-      <span class="icon">${item.isDirectory ? '📁' : '📄'}</span>
-      <span class="name">${item.name}</span>
-    `;
+    if (this.selected?.path === item.path) {
+      row.classList.add('selected');
+    }
 
-    row.addEventListener('click', () => this.onClick(item));
-    row.addEventListener('contextmenu', e => this.onContext(e, item));
+    row.textContent = item.name;
 
-    wrapper.appendChild(row);
+    row.addEventListener('click', async e => {
+      e.stopPropagation();
+      this.selectItem(item);
+
+      if (item.isDirectory) {
+        if (this.expanded.has(item.path)) {
+          this.expanded.delete(item.path);
+        } else {
+          this.expanded.add(item.path);
+
+          if (!item.children.length) {
+            const result = await window.electronAPI.readDirectory(item.path);
+            if (result.success) {
+              item.children = this.normalize(result.items);
+            }
+          }
+        }
+        this.render();
+      } else {
+        const result = await window.electronAPI.readFile(item.path);
+        if (result.success && window.editorUI) {
+          window.editorUI.openFileFromPath(item.path, result.content);
+        }
+      }
+    });
+
+    row.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      this.selectItem(item);
+
+      window.electronAPI.showExplorerContextMenu({
+        path: item.path,
+        isDirectory: item.isDirectory
+      });
+    });
 
     if (item.isDirectory && this.expanded.has(item.path)) {
       item.children.forEach(child => {
-        wrapper.appendChild(this.renderItem(child, depth + 1));
+        row.appendChild(this.renderItem(child, depth + 1));
       });
     }
 
-    return wrapper;
-  }
-
-  /* ---------------- Actions ---------------- */
-
-  async onClick(item) {
-    if (item.isDirectory) {
-      if (this.expanded.has(item.path)) {
-        this.expanded.delete(item.path);
-      } else {
-        this.expanded.add(item.path);
-
-        if (!item.children.length) {
-          const result = await window.electronAPI.readDirectory(item.path);
-          if (result.success) {
-            item.children = this.normalize(result.items);
-          }
-        }
-      }
-      this.render();
-    } else {
-      const result = await window.electronAPI.readFile(item.path);
-      if (result.success && window.editorUI) {
-        window.editorUI.openFileFromPath(item.path, result.content);
-      }
-    }
-  }
-
-  async onContext(e, item) {
-    e.preventDefault();
-
-    const action = prompt('Type: rename or delete');
-    if (!action) return;
-
-    if (action === 'rename') {
-      const newName = prompt('New name');
-      if (!newName) return;
-
-      const newPath = item.path.replace(/[^/\\]+$/, newName);
-      await window.electronAPI.renameItem(item.path, newPath);
-      this.refresh();
-    }
-
-    if (action === 'delete') {
-      if (!confirm('Delete this item?')) return;
-      await window.electronAPI.deleteItem(item.path, item.isDirectory);
-      this.refresh();
-    }
+    return row;
   }
 
   /* ---------------- Create ---------------- */
 
+  async createFromPath(base, input) {
+    const parts = input.split(/[\\/]/);
+    let current = base;
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      const isLast = i === parts.length - 1;
+      const next = `${current}/${part}`;
+
+      if (isLast && part.includes('.')) {
+        await window.electronAPI.createFile(current, part);
+        return next;
+      }
+
+      const exists = await window.electronAPI.fileExists(next);
+      if (!exists) {
+        await window.electronAPI.createDirectory(current, part);
+      }
+
+      current = next;
+    }
+  }
+
   async newFile() {
-    if (!this.currentWorkspace) return alert('Open a folder first');
-    const name = prompt('File name');
+    if (!this.currentWorkspace) return;
+
+    const name = prompt('File name (supports paths)');
     if (!name) return;
 
-    await window.electronAPI.createFile(this.currentWorkspace, name);
-    this.refresh();
+    const base = this.getTargetDirectory();
+    const fullPath = await this.createFromPath(base, name);
+
+    await this.refresh();
+
+    const result = await window.electronAPI.readFile(fullPath);
+    if (result.success && window.editorUI) {
+      window.editorUI.openFileFromPath(fullPath, result.content);
+    }
   }
 
   async newFolder() {
-    if (!this.currentWorkspace) return alert('Open a folder first');
-    const name = prompt('Folder name');
+    if (!this.currentWorkspace) return;
+
+    const name = prompt('Folder name (supports paths)');
     if (!name) return;
 
-    await window.electronAPI.createDirectory(this.currentWorkspace, name);
-    this.refresh();
+    const base = this.getTargetDirectory();
+    await this.createFromPath(base, name);
+    await this.refresh();
   }
 
   collapseAll() {
@@ -172,5 +275,6 @@ class TreeViewManager {
 /* ---------------- Init ---------------- */
 
 document.addEventListener('DOMContentLoaded', () => {
-  window.treeView = new TreeViewManager();
+  const container = document.getElementById('explorerTree');
+  window.treeView = new TreeViewManager(container);
 });
