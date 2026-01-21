@@ -222,6 +222,27 @@
                 <div class="editor-overlay" id="syntaxHighlight"></div>
             </div>
             
+            <div class="console-panel">
+                <div class="console-header">
+                    <div class="console-tabs">
+                        <button class="console-tab active" data-console="output"><i class="fas fa-terminal"></i> OUTPUT</button>
+                        <button class="console-tab" data-console="problems"><i class="fas fa-exclamation-circle"></i> PROBLEMS</button>
+                        <button class="console-tab" data-console="debug"><i class="fas fa-bug"></i> DEBUG CONSOLE</button>
+                    </div>
+                    <div class="console-actions">
+                        <button id="clearConsoleBtn" class="btn btn-small"><i class="fas fa-trash"></i> Clear</button>
+                        <button id="toggleConsoleBtn" class="btn btn-small"><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </div>
+                <div class="console-content active" id="outputConsole">
+                    <div class="console-output" id="consoleOutput">
+                        <div class="console-message info"><i class="fas fa-info-circle"></i> Welcome to QuillEditor!</div>
+                    </div>
+                </div>
+                <div class="console-content" id="problemsConsole"><div class="problems-list" id="problemsList"></div></div>
+                <div class="console-content" id="debugConsole"><div class="debug-console" id="debugConsoleOutput"></div></div>
+            </div>
+            
             <div class="status-bar">
                 <div class="status-bar-left">
                     <span class="status-item" id="cursorPosition"><i class="fas fa-i-cursor"></i> Ln 1, Col 1</span>
@@ -238,27 +259,6 @@
                     <span class="status-item" id="fileStatus"><i class="fas fa-circle" style="color: #27ae60;"></i> Saved</span>
                 </div>
             </div>
-        </div>
-        
-        <div class="console-panel">
-            <div class="console-header">
-                <div class="console-tabs">
-                    <button class="console-tab active" data-console="output"><i class="fas fa-terminal"></i> OUTPUT</button>
-                    <button class="console-tab" data-console="problems"><i class="fas fa-exclamation-circle"></i> PROBLEMS</button>
-                    <button class="console-tab" data-console="debug"><i class="fas fa-bug"></i> DEBUG CONSOLE</button>
-                </div>
-                <div class="console-actions">
-                    <button id="clearConsoleBtn" class="btn btn-small"><i class="fas fa-trash"></i> Clear</button>
-                    <button id="toggleConsoleBtn" class="btn btn-small"><i class="fas fa-chevron-down"></i></button>
-                </div>
-            </div>
-            <div class="console-content active" id="outputConsole">
-                <div class="console-output" id="consoleOutput">
-                    <div class="console-message info"><i class="fas fa-info-circle"></i> Welcome to QuillEditor!</div>
-                </div>
-            </div>
-            <div class="console-content" id="problemsConsole"><div class="problems-list" id="problemsList"></div></div>
-            <div class="console-content" id="debugConsole"><div class="debug-console" id="debugConsoleOutput"></div></div>
         </div>
         
         <div class="context-menu" id="tabContextMenu">
