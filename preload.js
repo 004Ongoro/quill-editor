@@ -20,7 +20,12 @@ contextBridge.exposeInMainWorld(
     // Context menu events
     showTabContextMenu: () => ipcRenderer.send('show-tab-context-menu'),
     showEditorContextMenu: () => ipcRenderer.send('show-editor-context-menu'),
-    
+    showExplorerContextMenu: (data) =>
+      ipcRenderer.send('show-explorer-context-menu', data),
+
+    onExplorerContextAction: (callback) =>
+      ipcRenderer.on('explorer-context-action', callback),
+
     // Listen for context menu actions from main process
     onTabContextMenuAction: (callback) => ipcRenderer.on('tab-context-menu-action', callback),
     onEditorContextMenuAction: (callback) => ipcRenderer.on('editor-context-menu-action', callback),

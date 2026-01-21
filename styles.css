@@ -1108,3 +1108,9 @@ body {
 .console-tabs button { background: none; border: none; color: var(--text-secondary); margin-right: 15px; cursor: pointer; font-size: 11px; }
 .console-tabs button.active { color: #fff; border-bottom: 2px solid var(--primary-color); }
 .console-content { flex: 1; padding: 10px; overflow-y: auto; font-family: monospace; }
+
+/* Workspace selected */
+.tree-item.selected {
+  border: 1px solid #4da3ff;
+  background: rgba(77,163,255,0.15);
+}

@@ -85,20 +85,15 @@ class QuillEditorUI {
         }
 
         // Listen for events from main process
-        window.electronAPI.onFolderOpened((event, data) => {
-        if (window.treeView && window.treeView.loadWorkspace) {
-            window.treeView.currentWorkspace = data.path;
-            window.treeView.workspacePathInput.value = data.path;
-            window.treeView.treeData = window.treeView.sortItems(data.items);
-            window.treeView.renderTree();
-            
-            // Update window title
-            const workspaceName = data.path.split('/').pop();
-            document.title = `${workspaceName} - QuillEditor`;
-            
-            this.addConsoleMessage(`Workspace opened: ${data.path}`, 'success');
-        }
-    });
+        window.electronAPI.onFolderOpened((_, data) => {
+        if (!data.success) return;
+
+        treeView.currentWorkspace = data.path;
+        treeView.treeData = treeView.normalize(data.items);
+        treeView.expanded.clear();
+        treeView.render();
+        });
+
         
         window.electronAPI.onFileOpened((event, data) => {
             this.openFileFromPath(data.path, data.content);
