@@ -88,7 +88,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "assets/icons/icon.icns",
+      "icon": "assets/icons/icon.ico",
       "category": "public.app-category.developer-tools",
       "darkModeSupport": true,
       "hardenedRuntime": true,
@@ -161,7 +161,6 @@
       "description": "QuillEditor is a lightweight, cross-platform code editor with syntax highlighting, debugging tools, and a modern interface."
     },
     "extraMetadata": {
-      "version": ""
     },
     "publish": {
       "provider": "github",
