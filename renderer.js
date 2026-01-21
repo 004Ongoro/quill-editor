@@ -29,6 +29,7 @@ class QuillEditorUI {
         this.lineNumbers = document.getElementById('lineNumbers');
         this.tabBar = document.getElementById('tabBar');
         this.openEditorsList = document.getElementById('openEditorsList');
+        this.openFolderActivityBtn = document.getElementById('openFolderActivity'); // Added
         
         // Status bar elements
         this.cursorPositionElement = document.getElementById('cursorPosition');
@@ -64,6 +65,12 @@ class QuillEditorUI {
         
         // Tab events
         document.getElementById('addTabBtn')?.addEventListener('click', () => this.createNewTab());
+
+        // Sidebar Open Folder Button Event
+        this.openFolderActivityBtn?.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent trigering the generic browser events
+            this.openFolder();
+        });
         
         // Console events
         this.clearConsoleBtn?.addEventListener('click', () => this.clearConsole());
@@ -86,12 +93,15 @@ class QuillEditorUI {
 
         // Listen for events from main process
         window.electronAPI.onFolderOpened((_, data) => {
-        if (!data.success) return;
+            if (!data.success) return;
 
-        treeView.currentWorkspace = data.path;
-        treeView.treeData = treeView.normalize(data.items);
-        treeView.expanded.clear();
-        treeView.render();
+            if (window.treeView) {
+                window.treeView.currentWorkspace = data.path;
+                window.treeView.treeData = window.treeView.normalize(data.items);
+                window.treeView.expanded.clear();
+                window.treeView.selected = null;
+                window.treeView.render();
+            }
         });
 
         
@@ -120,7 +130,10 @@ class QuillEditorUI {
         this.activityItems.forEach(item => {
             item.addEventListener('click', (e) => {
                 const panelId = e.currentTarget.dataset.panel;
-                this.switchSidebarPanel(panelId);
+                // ths only switch if its a panel-switching item
+                if (panelId) {
+                    this.switchSidebarPanel(panelId);
+                }
             });
         });
     }
@@ -128,9 +141,12 @@ class QuillEditorUI {
     switchSidebarPanel(panelId) {
         // Update activity bar
         this.activityItems.forEach(item => {
-            item.classList.remove('active');
-            if (item.dataset.panel === panelId) {
-                item.classList.add('active');
+            // Only update active state for items that are actual panels
+            if (item.dataset.panel) {
+                item.classList.remove('active');
+                if (item.dataset.panel === panelId) {
+                    item.classList.add('active');
+                }
             }
         });
         
@@ -398,7 +414,7 @@ class QuillEditorUI {
         // Update line numbers
         this.updateLineNumbers();
         
-        // Apply syntax highlighting (debounced)
+        // Apply syntax highlighting
         this.debounceHighlight();
         
         // Update status bar
@@ -682,7 +698,7 @@ class QuillEditorUI {
     
     async saveFileAs() {
         // This will trigger the main process to show save dialog
-        // The actual saving is handled in the electron listener
+        // The  saving is handled in the electron listener
         console.log('Save as requested');
     }
     
