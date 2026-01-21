@@ -954,3 +954,157 @@ select:focus {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
+
+
+/* ========================================= */
+/* CSS Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary-color: #007acc;
+    --secondary-color: #333333;
+    --sidebar-bg: #252526;
+    --activity-bar-bg: #333333;
+    --editor-bg: #1e1e1e;
+    --tab-bg: #2d2d30;
+    --tab-active-bg: #1e1e1e;
+    --status-bar-bg: #007acc;
+    --console-bg: #1e1e1e;
+    --text-primary: #cccccc;
+    --text-secondary: #858585;
+    --text-muted: #6e6e6e;
+    --accent-blue: #007acc;
+    --accent-green: #4ec9b0;
+    --accent-yellow: #dcdcaa;
+    --accent-red: #f44747;
+    --accent-orange: #ce9178;
+    --activity-bar-width: 48px;
+    --sidebar-width: 300px;
+    --status-bar-height: 22px;
+}
+
+/* Light Theme Overrides */
+body.theme-light {
+    --sidebar-bg: #f3f3f3;
+    --activity-bar-bg: #2c2c2c;
+    --editor-bg: #ffffff;
+    --tab-bg: #ececec;
+    --tab-active-bg: #ffffff;
+    --status-bar-bg: #007acc;
+    --console-bg: #ffffff;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+}
+
+/* High Contrast Overrides */
+body.theme-high-contrast {
+    --sidebar-bg: #000000;
+    --activity-bar-bg: #000000;
+    --editor-bg: #000000;
+    --text-primary: #ffffff;
+    --primary-color: #ffff00;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    color: var(--text-primary);
+    background-color: var(--editor-bg);
+    overflow: hidden;
+    height: 100vh;
+}
+
+.hidden { display: none !important; }
+
+/* App Layout */
+.app-container { display: flex; height: 100vh; width: 100vw; }
+
+.activity-bar {
+    width: var(--activity-bar-width);
+    background-color: var(--activity-bar-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 10px;
+    border-right: 1px solid rgba(255,255,255,0.1);
+}
+
+.activity-item {
+    width: 100%;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    cursor: pointer;
+    position: relative;
+}
+
+.activity-item.active { color: #fff; }
+.activity-item.active::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--primary-color);
+}
+
+.sidebar { width: var(--sidebar-width); background: var(--sidebar-bg); border-right: 1px solid rgba(255,255,255,0.05); }
+.sidebar-panel { display: none; height: 100%; flex-direction: column; }
+.sidebar-panel.active { display: flex; }
+
+.panel-header { padding: 10px; background: rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+.panel-header h3 { font-size: 11px; color: var(--text-secondary); }
+
+/* Main Area */
+.main-area { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; }
+
+.tab-bar { background: var(--tab-bg); display: flex; height: 35px; overflow-x: auto; }
+.tab { min-width: 120px; padding: 0 10px; display: flex; align-items: center; gap: 8px; border-right: 1px solid rgba(0,0,0,0.2); cursor: pointer; background: var(--tab-bg); }
+.tab.active { background: var(--tab-active-bg); }
+
+/* Find/Replace Widget */
+.find-replace-widget {
+    position: absolute;
+    top: 35px;
+    right: 20px;
+    z-index: 100;
+    background: var(--sidebar-bg);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid var(--primary-color);
+}
+
+.fr-container { display: flex; flex-direction: column; gap: 4px; }
+.fr-row { display: flex; align-items: center; gap: 4px; }
+.fr-input-group { display: flex; align-items: center; background: rgba(255,255,255,0.05); border-radius: 2px; padding: 2px; }
+
+.fr-input-group input { 
+    background: transparent; border: none; color: var(--text-primary); padding: 4px; width: 150px; outline: none; font-size: 12px;
+}
+
+.fr-match-count { font-size: 10px; color: var(--text-secondary); padding: 0 4px; min-width: 30px; }
+.fr-btn, .fr-btn-toggle { background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 2px; }
+.fr-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+/* Editor */
+.editor-container { flex: 1; display: flex; position: relative; background: var(--editor-bg); }
+.line-numbers { width: 50px; background: rgba(0,0,0,0.1); color: var(--text-secondary); text-align: right; padding: 10px 10px 0 0; font-family: monospace; border-right: 1px solid rgba(255,255,255,0.05); }
+.code-editor { flex: 1; background: transparent; color: transparent; caret-color: var(--text-primary); border: none; outline: none; padding: 10px; resize: none; font-family: 'Consolas', monospace; font-size: 14px; white-space: pre; z-index: 2; }
+.editor-overlay { position: absolute; top: 0; left: 50px; right: 0; bottom: 0; padding: 10px; pointer-events: none; font-family: 'Consolas', monospace; font-size: 14px; white-space: pre; overflow: hidden; }
+
+/* Search Match Highlighting */
+.search-match { background-color: rgba(255, 255, 0, 0.3); border-bottom: 2px solid yellow; }
+.search-match.active { background-color: rgba(255, 165, 0, 0.6); border: 1px solid white; }
+
+/* Status Bar */
+.status-bar { height: 22px; background: var(--status-bar-bg); color: #fff; display: flex; justify-content: space-between; align-items: center; padding: 0 10px; font-size: 11px; }
+.status-item { margin-right: 15px; }
+
+/* Console */
+.console-panel { height: 200px; background: var(--console-bg); border-top: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; }
+.console-header { height: 30px; background: rgba(0,0,0,0.2); display: flex; align-items: center; padding: 0 10px; }
+.console-tabs button { background: none; border: none; color: var(--text-secondary); margin-right: 15px; cursor: pointer; font-size: 11px; }
+.console-tabs button.active { color: #fff; border-bottom: 2px solid var(--primary-color); }
+.console-content { flex: 1; padding: 10px; overflow-y: auto; font-family: monospace; }

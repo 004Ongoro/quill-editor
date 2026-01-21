@@ -23,7 +23,7 @@
     "electron",
     "ide"
   ],
-  "author": "Your Name",
+  "author": "George Ongoro",
   "license": "MIT",
   "devDependencies": {
     "electron": "^28.0.0",
