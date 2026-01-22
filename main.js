@@ -4,21 +4,12 @@ const fs = require("fs");
 const os = require("os");
 const { exec } = require("child_process");
 
-
 let mainWindow = null;
 let filePath = null;
 const userDataPath = app.getPath("userData");
 const sessionFile = path.join(userDataPath, "session.json");
 
-// Create the main window
-const { exec } = require("child_process");
-
-let mainWindow = null;
-let filePath = null;
-const userDataPath = app.getPath("userData");
-const sessionFile = path.join(userDataPath, "session.json");
-
-// ===== ADD THIS HERE =====
+// ===== run the git command =====
 function runGitCommand(command, cwd) {
   return new Promise((resolve) => {
     exec(command, { cwd }, (error, stdout) => {
