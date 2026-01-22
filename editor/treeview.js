@@ -86,22 +86,52 @@ class TreeViewManager {
   }
 
   async newFile() {
-    const name = await this.showModal({ title: 'New File', message: 'Enter file name:', showInput: true });
-    if (!name || !this.currentWorkspace) return;
+    const inputPath = await this.showModal({ 
+      title: 'New File', 
+      message: 'Enter file path (e.g., src/utils/helper.js):', 
+      showInput: true 
+    });
+    
+    if (!inputPath || !this.currentWorkspace) return;
     
     const dest = this.getTargetDirectory();
-    // Fixed: Passing arguments separately as defined in preload.js
-    const res = await window.electronAPI.createFile(dest, name);
-    if (res.success) this.refresh();
+    // Pass the full relative path to the main process
+    const res = await window.electronAPI.createFile(dest, inputPath);
+    
+    if (res.success) {
+      await this.refresh();
+      
+      const fileRes = await window.electronAPI.readFile(res.path);
+      
+      if (fileRes.success && window.editorUI) {
+        window.editorUI.openFileFromPath(res.path, fileRes.content);
+        
+        this.selectItemByPath(res.path);
+      }
+    } else {
+      console.error("Failed to create file:", res.error);
+    }
   }
 
   async newFolder() {
-    const name = await this.showModal({ title: 'New Folder', message: 'Enter folder name:', showInput: true });
-    if (!name || !this.currentWorkspace) return;
+    const inputPath = await this.showModal({ 
+      title: 'New Folder', 
+      message: 'Enter folder path (e.g., assets/images/icons):', 
+      showInput: true 
+    });
+    
+    if (!inputPath || !this.currentWorkspace) return;
     
     const dest = this.getTargetDirectory();
-    const res = await window.electronAPI.createDirectory(dest, name);
-    if (res.success) this.refresh();
+    const res = await window.electronAPI.createDirectory(dest, inputPath);
+    
+    if (res.success) {
+      await this.refresh();
+      // Expand the newly created folder path in the tree
+      this.selectItemByPath(res.path);
+      this.expanded.add(this.normalizePath(res.path));
+      this.render();
+    }
   }
 
   async deleteSelected() {

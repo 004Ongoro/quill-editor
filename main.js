@@ -267,20 +267,36 @@ ipcMain.handle('read-directory', async (event, path) => {
   }
 });
 
-ipcMain.handle('create-file', async (event, { path, name }) => {
+ipcMain.handle('create-file', async (event, { path: folderPath, name: relativePath }) => {
   try {
-    const fullPath = path + '/' + name;
-    fs.writeFileSync(fullPath, '');
+    const fullPath = path.join(folderPath, relativePath);
+    const directory = path.dirname(fullPath);
+
+    // Create directories recursively if they don't exist
+    if (!fs.existsSync(directory)) {
+      fs.mkdirSync(directory, { recursive: true });
+    }
+
+    // Create the file only if it doesn't exist
+    if (!fs.existsSync(fullPath)) {
+      fs.writeFileSync(fullPath, '');
+    }
+
     return { success: true, path: fullPath };
   } catch (error) {
     return { success: false, error: error.message };
   }
 });
 
-ipcMain.handle('create-directory', async (event, { path, name }) => {
+ipcMain.handle('create-directory', async (event, { path: folderPath, name: relativePath }) => {
   try {
-    const fullPath = path + '/' + name;
-    fs.mkdirSync(fullPath);
+    const fullPath = path.join(folderPath, relativePath);
+    
+    // Create directory and parents recursively
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+    
     return { success: true, path: fullPath };
   } catch (error) {
     return { success: false, error: error.message };
