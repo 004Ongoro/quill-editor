@@ -1,6 +1,6 @@
 {
   "name": "quilleditor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A lightweight code editor built with Electron",
   "main": "main.js",
   "scripts": {
@@ -160,8 +160,7 @@
       "summary": "A lightweight code editor",
       "description": "QuillEditor is a lightweight, cross-platform code editor with syntax highlighting, debugging tools, and a modern interface."
     },
-    "extraMetadata": {
-    },
+    "extraMetadata": {},
     "publish": {
       "provider": "github",
       "releaseType": "release"
