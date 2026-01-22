@@ -53,6 +53,12 @@ class QuillEditorUI {
         this.consoleTabs = document.querySelectorAll('.console-tab');
         this.consoleContents = document.querySelectorAll('.console-content');
     }
+
+    // helper to normalize paths
+
+    normalizePath(p) {
+        return p ? p.replace(/\\/g, '/') : p;
+    }
     
     setupEventListeners() {
         // Editor events
@@ -456,23 +462,19 @@ class QuillEditorUI {
         const lines = content.split('\n').length;
         const chars = content.length;
         
-        // Update counts
         this.lineCountElement.innerHTML = `<i class="fas fa-bars"></i> ${lines} ${lines === 1 ? 'line' : 'lines'}`;
         this.charCountElement.innerHTML = `<i class="fas fa-font"></i> ${chars} chars`;
-        
-        // Update language
         this.languageInfoElement.innerHTML = `<i class="fas fa-code"></i> ${this.currentLanguage.charAt(0).toUpperCase() + this.currentLanguage.slice(1)}`;
         
-        // Update file info
         const tab = this.getCurrentTab();
         if (tab && tab.filePath) {
-            const fileName = tab.filePath.split('/').pop();
+            // Fix: Use regex split here too for consistent status bar naming
+            const fileName = tab.filePath.split(/[/\\]/).pop();
             this.fileInfoElement.innerHTML = `<i class="fas fa-file"></i> ${fileName}`;
         } else {
             this.fileInfoElement.innerHTML = `<i class="fas fa-file"></i> ${tab?.title || 'Untitled'}`;
         }
         
-        // Update file status
         if (this.isDirty) {
             this.fileStatusElement.innerHTML = `<i class="fas fa-circle" style="color: #f0db4f;"></i> Unsaved`;
         } else {
@@ -617,14 +619,18 @@ class QuillEditorUI {
     }
     
     openFileFromPath(path, content) {
-        // Check if file is already open
-        const existingTab = this.tabs.find(tab => tab.filePath === path);
+        const normalizedPath = this.normalizePath(path);
+        // Use regex to split by both / and \ to safely get the filename
+        const fileName = normalizedPath.split(/[/\\]/).pop();
+        
+        // Check if file is already open using normalized paths to prevent duplicates
+        const existingTab = this.tabs.find(tab => 
+            tab.filePath && this.normalizePath(tab.filePath) === normalizedPath
+        );
         
         if (existingTab) {
-            // Switch to existing tab
             this.switchTab(existingTab.id);
             
-            // Update content if different
             if (existingTab.content !== content) {
                 existingTab.content = content;
                 this.codeEditor.value = content;
@@ -634,25 +640,22 @@ class QuillEditorUI {
                 this.applySyntaxHighlighting();
             }
         } else {
-            // Create new tab
-            const fileName = path.split('/').pop();
-            const language = this.detectLanguageFromPath(path);
-            const tabId = this.createNewTab(fileName, content, path, language);
+            const language = this.detectLanguageFromPath(normalizedPath);
+            // Pass the clean fileName as the title
+            const tabId = this.createNewTab(fileName, content, normalizedPath, language);
             
-            // Update the tab with file info
             const tab = this.tabs.find(t => t.id === tabId);
             if (tab) {
-                tab.filePath = path;
+                tab.filePath = normalizedPath;
                 tab.isDirty = false;
             }
             
-            // Update UI
             this.updateOpenEditorsList();
         }
         
         this.isDirty = false;
         this.updateStatusBar();
-        this.addConsoleMessage(`Opened: ${path}`, 'success');
+        this.addConsoleMessage(`Opened: ${normalizedPath}`, 'success');
     }
     
     detectLanguageFromPath(path) {
