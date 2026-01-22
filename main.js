@@ -2,6 +2,8 @@ const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const { exec } = require("child_process");
+
 
 let mainWindow = null;
 let filePath = null;
@@ -9,6 +11,25 @@ const userDataPath = app.getPath("userData");
 const sessionFile = path.join(userDataPath, "session.json");
 
 // Create the main window
+const { exec } = require("child_process");
+
+let mainWindow = null;
+let filePath = null;
+const userDataPath = app.getPath("userData");
+const sessionFile = path.join(userDataPath, "session.json");
+
+// ===== ADD THIS HERE =====
+function runGitCommand(command, cwd) {
+  return new Promise((resolve) => {
+    exec(command, { cwd }, (error, stdout) => {
+      if (error) {
+        resolve("");
+      } else {
+        resolve(stdout.trim());
+      }
+    });
+  });
+}
 function createWindow() {
   const session = loadSession();
 
