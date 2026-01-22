@@ -3,7 +3,7 @@ class TreeViewManager {
     this.container = container;
     this.treeData = [];
     this.currentWorkspace = null;
-
+    this.workspaceName = "";
     this.selected = null;
     this.expanded = new Set();
 
@@ -13,96 +13,211 @@ class TreeViewManager {
     this.initContextActions();
   }
 
-  /* ---------------- Toolbar ---------------- */
+  normalizePath(p) {
+    return p ? p.replace(/\\/g, '/') : p;
+  }
+
+  /* ---------------- Modal Utility (Async Prompt Replacement) ---------------- */
+  
+  showModal({ title, message, showInput = false, defaultValue = '' }) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('customModal');
+      const input = document.getElementById('modalInput');
+      const confirmBtn = document.getElementById('modalConfirm');
+      const cancelBtn = document.getElementById('modalCancel');
+      
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalMessage').textContent = message;
+      
+      if (showInput) {
+        input.classList.remove('hidden');
+        input.value = defaultValue;
+        setTimeout(() => input.focus(), 50);
+      } else {
+        input.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+
+      const cleanup = (value) => {
+        modal.classList.add('hidden');
+        confirmBtn.onclick = null;
+        cancelBtn.onclick = null;
+        input.onkeydown = null;
+        resolve(value);
+      };
+
+      confirmBtn.onclick = () => cleanup(showInput ? input.value : true);
+      cancelBtn.onclick = () => cleanup(null);
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') cleanup(input.value);
+        if (e.key === 'Escape') cleanup(null);
+      };
+    });
+  }
+
+  /* ---------------- Workspace Operations ---------------- */
 
   bindToolbar() {
-    document.getElementById('openFolderBtn')?.addEventListener('click', () => this.openFolder());
     document.getElementById('newFileBtn')?.addEventListener('click', () => this.newFile());
     document.getElementById('newFolderBtn')?.addEventListener('click', () => this.newFolder());
     document.getElementById('refreshExplorer')?.addEventListener('click', () => this.refresh());
     document.getElementById('collapseAllBtn')?.addEventListener('click', () => this.collapseAll());
+    document.getElementById('openFolderBtn')?.addEventListener('click', () => this.openFolder());
   }
 
-  // I commented this method before in the previous
-  //  commits(upto #7 in main) to try out a better appraoch, 
-  // but i came back to it
   bindFolderEvents() {
-    if (window.electronAPI && window.electronAPI.onFolderOpened) {
+    if (window.electronAPI) {
       window.electronAPI.onFolderOpened((_, data) => {
-        if (!data.success) return;
-        this.currentWorkspace = data.path;
-        this.treeData = this.normalize(data.items);
-        this.expanded.clear();
-        this.selected = null;
-        this.render();
+        if (data.success) this.setWorkspace(data.path, data.items);
+      });
+      window.electronAPI.onFileOpened((_, data) => {
+        if (data?.path) this.selectItemByPath(data.path);
       });
     }
   }
 
-  /* ---------------- Workspace ---------------- */
-
-  initWorkspaceHandlers() {
-    this.container.addEventListener('click', e => {
-      if (e.target === this.container && this.currentWorkspace) {
-        this.selectItem({
-          path: this.currentWorkspace,
-          isDirectory: true,
-          isWorkspace: true
-        });
-      }
-    });
-
-    this.container.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      if (!this.currentWorkspace) return;
-
-      this.selectItem({
-        path: this.currentWorkspace,
-        isDirectory: true,
-        isWorkspace: true
-      });
-
-      window.electronAPI.showExplorerContextMenu({
-        path: this.currentWorkspace,
-        isDirectory: true,
-        isWorkspace: true
-      });
-    });
-  }
-
-  selectItem(item) {
-    this.selected = item;
+  setWorkspace(path, items) {
+    this.currentWorkspace = this.normalizePath(path);
+    this.workspaceName = this.currentWorkspace.split('/').pop() || this.currentWorkspace;
+    this.treeData = this.normalize(items);
+    this.expanded.add(this.currentWorkspace);
     this.render();
   }
 
-  // Helper to higlight the file tree
-  selectItemByPath(path) {
-    // Helper to find item in treeData (recursively)
-    const findItem = (items) => {
-      for (const item of items) {
-        if (item.path === path) return item;
-        if (item.children && item.children.length > 0) {
-          const found = findItem(item.children);
-          if (found) return found;
-        }
+  async newFile() {
+    const name = await this.showModal({ title: 'New File', message: 'Enter file name:', showInput: true });
+    if (!name || !this.currentWorkspace) return;
+    
+    const dest = this.getTargetDirectory();
+    // Fixed: Passing arguments separately as defined in preload.js
+    const res = await window.electronAPI.createFile(dest, name);
+    if (res.success) this.refresh();
+  }
+
+  async newFolder() {
+    const name = await this.showModal({ title: 'New Folder', message: 'Enter folder name:', showInput: true });
+    if (!name || !this.currentWorkspace) return;
+    
+    const dest = this.getTargetDirectory();
+    const res = await window.electronAPI.createDirectory(dest, name);
+    if (res.success) this.refresh();
+  }
+
+  async deleteSelected() {
+    if (!this.selected || this.selected.isRoot) return;
+    const confirmed = await this.showModal({ title: 'Confirm Delete', message: `Are you sure you want to delete ${this.selected.name}?` });
+    
+    if (confirmed) {
+      await window.electronAPI.deleteItem(this.selected.path, this.selected.isDirectory);
+      this.refresh();
+    }
+  }
+
+  async renameSelected() {
+    if (!this.selected || this.selected.isRoot) return;
+    const name = await this.showModal({ title: 'Rename', message: 'Enter new name:', showInput: true, defaultValue: this.selected.name });
+    
+    if (name && name !== this.selected.name) {
+      const newPath = this.selected.path.replace(/[/\\\\][^/\\\\]+$/, '/') + name;
+      await window.electronAPI.renameItem(this.selected.path, newPath);
+      this.refresh();
+    }
+  }
+
+  /* ---------------- Standard Logic ---------------- */
+
+  render() {
+    this.container.innerHTML = '';
+    if (!this.currentWorkspace) {
+      this.container.innerHTML = `<div class="tree-empty"><button id="openFolderBtnInner" class="btn btn-small">Open Folder</button></div>`;
+      document.getElementById('openFolderBtnInner')?.addEventListener('click', () => this.openFolder());
+      return;
+    }
+    const rootRow = this.createRow({ name: this.workspaceName, path: this.currentWorkspace, isDirectory: true, isRoot: true }, 0);
+    this.container.appendChild(rootRow);
+    if (this.expanded.has(this.currentWorkspace)) this.renderTree(this.treeData, 1);
+  }
+
+  renderTree(items, depth) {
+    items.forEach(item => {
+      this.container.appendChild(this.createRow(item, depth));
+      if (item.isDirectory && this.expanded.has(item.path) && item.children) {
+        this.renderTree(item.children, depth + 1);
       }
-      return null;
+    });
+  }
+
+  createRow(item, depth) {
+    const row = document.createElement('div');
+    row.className = 'tree-item';
+    row.style.paddingLeft = `${(depth * 12) + 8}px`;
+    if (this.selected && this.normalizePath(this.selected.path) === this.normalizePath(item.path)) row.classList.add('selected');
+
+    const iconClass = item.isDirectory ? `fas ${this.expanded.has(item.path) ? 'fa-folder-open' : 'fa-folder'}` : this.getFileIcon(item.name);
+    const toggleIcon = item.isDirectory ? `<i class="tree-toggle fas ${this.expanded.has(item.path) ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>` : `<span style="width:14px; display:inline-block"></span>`;
+
+    row.innerHTML = `${toggleIcon}<i class="tree-icon ${iconClass}"></i><span class="tree-name">${item.name}</span>`;
+
+    row.onclick = async (e) => {
+      e.stopPropagation();
+      this.selected = item;
+      if (item.isDirectory) {
+        if (this.expanded.has(item.path)) this.expanded.delete(item.path);
+        else {
+          this.expanded.add(item.path);
+          if (!item.children || item.children.length === 0) {
+            const res = await window.electronAPI.readDirectory(item.path);
+            if (res.success) item.children = this.normalize(res.items);
+          }
+        }
+      } else {
+        const res = await window.electronAPI.readFile(item.path);
+        if (res.success) window.editorUI.openFileFromPath(item.path, res.content);
+      }
+      this.render();
     };
 
-    const item = findItem(this.treeData);
-    if (item) {
+    row.oncontextmenu = (e) => {
+      e.preventDefault(); e.stopPropagation();
       this.selected = item;
       this.render();
-    }
+      window.electronAPI.showExplorerContextMenu({ path: item.path, isDirectory: item.isDirectory, isWorkspace: !!item.isRoot });
+    };
+
+    return row;
+  }
+
+  normalize(items) {
+    return (items || []).map(i => ({ ...i, path: this.normalizePath(i.path), children: i.children || [] }))
+      .sort((a, b) => a.isDirectory === b.isDirectory ? a.name.localeCompare(b.name) : a.isDirectory ? -1 : 1);
+  }
+
+  getFileIcon(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const map = { 'js': 'fab fa-js', 'html': 'fab fa-html5', 'css': 'fab fa-css3-alt', 'py': 'fab fa-python' };
+    return map[ext] || 'fas fa-file-code';
   }
 
   getTargetDirectory() {
     if (!this.selected) return this.currentWorkspace;
-    if (this.selected.isDirectory) return this.selected.path;
-    return this.selected.path.replace(/[/\\][^/\\]+$/, '');
+    return this.selected.isDirectory ? this.selected.path : this.selected.path.replace(/[/\\\\][^/\\\\]+$/, '');
   }
 
-  /* ---------------- Context Menu ---------------- */
+  async openFolder() {
+    const res = await window.electronAPI.openFolderDialog();
+    if (res?.success) this.setWorkspace(res.path, res.items);
+  }
+
+  async refresh() {
+    if (!this.currentWorkspace) return;
+    const res = await window.electronAPI.readDirectory(this.currentWorkspace);
+    if (res.success) { this.treeData = this.normalize(res.items); this.render(); }
+  }
+
+  initWorkspaceHandlers() {
+    this.container.onclick = () => { if (this.currentWorkspace) { this.selected = { path: this.currentWorkspace, isDirectory: true, isRoot: true }; this.render(); }};
+  }
 
   initContextActions() {
     window.electronAPI.onExplorerContextAction((_, action) => {
@@ -113,229 +228,9 @@ class TreeViewManager {
     });
   }
 
-  async deleteSelected() {
-    if (!this.selected || this.selected.isWorkspace) return;
-    if (!confirm('Delete this item?')) return;
-
-    await window.electronAPI.deleteItem(
-      this.selected.path,
-      this.selected.isDirectory
-    );
-    await this.refresh();
-  }
-
-  async renameSelected() {
-    if (!this.selected || this.selected.isWorkspace) return;
-
-    const name = prompt('New name');
-    if (!name) return;
-
-    const newPath =
-      this.selected.path.replace(/[/\\][^/\\]+$/, '/') + name;
-
-    await window.electronAPI.renameItem(this.selected.path, newPath);
-    await this.refresh();
-  }
-
-  /* ---------------- Explorer Ops ---------------- */
-
-  async openFolder() {
-    const result = await window.electronAPI.openFolderDialog();
-    if (!result || !result.success) return;
-
-    this.currentWorkspace = result.path;
-    this.treeData = this.normalize(result.items);
-    this.expanded.clear();
-    this.selected = null;
-
-    this.render();
-  }
-
-  async refresh() {
-    if (!this.currentWorkspace) return;
-
-    const result = await window.electronAPI.readDirectory(this.currentWorkspace);
-    if (!result.success) return;
-
-    this.treeData = this.normalize(result.items);
-    this.render();
-  }
-
-  normalize(items) {
-    return items
-      .sort((a, b) =>
-        a.isDirectory === b.isDirectory
-          ? a.name.localeCompare(b.name)
-          : a.isDirectory ? -1 : 1
-      )
-      .map(i => ({ ...i, children: i.children || [] }));
-  }
-
-  /* ---------------- Rendering ---------------- */
-
-  render() {
-    this.container.innerHTML = '';
-    if (!this.treeData || this.treeData.length === 0) {
-      this.container.innerHTML = `
-        <div class="tree-empty">
-          <i class="fas fa-folder-open"></i>
-          <p>No folder opened</p>
-          <button id="openFolderBtnInner" class="btn btn-small">
-            <i class="fas fa-folder-open"></i> Open Folder
-          </button>
-        </div>
-      `;
-      document.getElementById('openFolderBtnInner')?.addEventListener('click', () => this.openFolder());
-      return;
-    }
-    
-    this.renderTree(this.treeData, 0);
-  }
-
-  renderTree(items, depth) {
-    items.forEach(item => {
-      const row = this.createRow(item, depth);
-      this.container.appendChild(row);
-
-      if (item.isDirectory && this.expanded.has(item.path)) {
-        if (item.children && item.children.length > 0) {
-          this.renderTree(item.children, depth + 1);
-        }
-      }
-    });
-  }
-
-  createRow(item, depth) {
-    const row = document.createElement('div');
-    row.className = 'tree-item';
-    row.style.paddingLeft = `${(depth * 16) + 8}px`;
-
-    if (this.selected?.path === item.path) {
-      row.classList.add('selected');
-    }
-
-    const iconClass = item.isDirectory ? 
-      (this.expanded.has(item.path) ? 'fa-folder-open' : 'fa-folder') : 
-      this.getFileIcon(item.name);
-
-    row.innerHTML = `
-      <i class="tree-toggle fas ${item.isDirectory ? (this.expanded.has(item.path) ? 'fa-chevron-down' : 'fa-chevron-right') : ''}"></i>
-      <i class="tree-icon fas ${iconClass}"></i>
-      <span class="tree-name">${item.name}</span>
-    `;
-
-    row.addEventListener('click', async e => {
-      e.stopPropagation();
-      this.selected = item;
-
-      if (item.isDirectory) {
-        if (this.expanded.has(item.path)) {
-          this.expanded.delete(item.path);
-        } else {
-          this.expanded.add(item.path);
-          if (!item.children || item.children.length === 0) {
-            const result = await window.electronAPI.readDirectory(item.path);
-            if (result.success) {
-              item.children = this.normalize(result.items);
-            }
-          }
-        }
-      } else {
-        const result = await window.electronAPI.readFile(item.path);
-        if (result.success && window.editorUI) {
-          window.editorUI.openFileFromPath(item.path, result.content);
-        }
-      }
-      this.render();
-    });
-
-    row.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.selectItem(item);
-      window.electronAPI.showExplorerContextMenu({
-        path: item.path,
-        isDirectory: item.isDirectory
-      });
-    });
-
-    return row;
-  }
-
-  getFileIcon(fileName) {
-    const ext = fileName.split('.').pop().toLowerCase();
-    const map = {
-      'js': 'fab fa-js',
-      'html': 'fab fa-html5',
-      'css': 'fab fa-css3-alt',
-      'json': 'fas fa-file-code',
-      'py': 'fab fa-python',
-      'md': 'fas fa-file-alt'
-    };
-    return map[ext] || 'fas fa-file-code';
-  }
-
-  /* ---------------- Create ---------------- */
-
-  async createFromPath(base, input) {
-    const parts = input.split(/[\\/]/);
-    let current = base;
-    let finalPath = "";
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const isLast = i === parts.length - 1;
-      const next = `${current}/${part}`;
-
-      if (isLast && part.includes('.')) {
-        await window.electronAPI.createFile(current, part);
-        finalPath = next;
-      } else {
-        const check = await window.electronAPI.fileExists(next);
-        if (!check.exists) {
-          await window.electronAPI.createDirectory(current, part);
-        }
-        current = next;
-        if (isLast) finalPath = next;
-      }
-    }
-    return finalPath;
-  }
-
-  async newFile() {
-    if (!this.currentWorkspace) return;
-    const name = prompt('File name');
-    if (!name) return;
-
-    const base = this.getTargetDirectory();
-    const fullPath = await this.createFromPath(base, name);
-    await this.refresh();
-
-    const result = await window.electronAPI.readFile(fullPath);
-    if (result.success && window.editorUI) {
-      window.editorUI.openFileFromPath(fullPath, result.content);
-    }
-  }
-
-  async newFolder() {
-    if (!this.currentWorkspace) return;
-    const name = prompt('Folder name');
-    if (!name) return;
-
-    const base = this.getTargetDirectory();
-    await this.createFromPath(base, name);
-    await this.refresh();
-  }
-
-  collapseAll() {
-    this.expanded.clear();
-    this.render();
-  }
+  collapseAll() { this.expanded.clear(); if (this.currentWorkspace) this.expanded.add(this.currentWorkspace); this.render(); }
 }
 
-/* ---------------- Init ---------------- */
-
 document.addEventListener('DOMContentLoaded', () => {
-  const container = document.getElementById('treeViewContainer');
-  window.treeView = new TreeViewManager(container);
+  window.treeView = new TreeViewManager(document.getElementById('treeViewContainer'));
 });

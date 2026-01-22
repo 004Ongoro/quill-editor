@@ -25,15 +25,15 @@ class CodeEditorCore {
     
     setupPerformanceOptimizations() {
         // Use requestAnimationFrame for smooth scrolling
-        let scrollTimeout;
-        this.textarea.addEventListener('scroll', () => {
-            if (scrollTimeout) {
-                cancelAnimationFrame(scrollTimeout);
-            }
-            scrollTimeout = requestAnimationFrame(() => {
-                this.syncScroll();
-            });
-        });
+        // let scrollTimeout;
+        // this.textarea.addEventListener('scroll', () => {
+        //     if (scrollTimeout) {
+        //         cancelAnimationFrame(scrollTimeout);
+        //     }
+        //     scrollTimeout = requestAnimationFrame(() => {
+        //         this.syncScroll();
+        //     });
+        // });
         
         // Handle large files by optimizing updates
         this.textarea.addEventListener('input', () => {
