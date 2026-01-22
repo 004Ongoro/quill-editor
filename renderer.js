@@ -7,6 +7,12 @@ class QuillEditorUI {
     this.currentLanguage = "javascript";
     this.isDirty = false;
     this.nextTabId = 1;
+    this.settings = {
+      fontSize: 14,
+      tabSize: 4,
+      wordWrap: true,
+      theme: "dark",
+    };
 
     this.initializeElements();
     this.setupEventListeners();
@@ -16,6 +22,9 @@ class QuillEditorUI {
     this.updateStatusBar();
     this.lastKeyWasCtrlK = false;
     this.findReplace = null;
+
+    // Load session
+    this.loadSession();
 
     // Create initial tab
     this.createNewTab();
@@ -80,6 +89,51 @@ class QuillEditorUI {
       this.updateSelectionInfo(),
     );
 
+    const fontSizeInput = document.getElementById("fontSize");
+    const tabSizeInput = document.getElementById("tabSize");
+    const wordWrapCheckbox = document.getElementById("wordWrap");
+    const themeSelect = document.getElementById("themeSelect");
+
+    if (fontSizeInput) {
+      fontSizeInput.addEventListener("change", (e) => {
+        this.settings.fontSize = parseInt(e.target.value);
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    if (fontSizeInput) {
+      fontSizeInput.addEventListener("change", (e) => {
+        this.settings.fontSize = parseInt(e.target.value);
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    if (tabSizeInput) {
+      tabSizeInput.addEventListener("change", (e) => {
+        this.settings.tabSize = parseInt(e.target.value);
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    if (wordWrapCheckbox) {
+      wordWrapCheckbox.addEventListener("change", (e) => {
+        this.settings.wordWrap = e.target.checked;
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    if (themeSelect) {
+      themeSelect.addEventListener("change", (e) => {
+        this.settings.theme = e.target.value;
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
     // Tab events
     document
       .getElementById("addTabBtn")
@@ -106,6 +160,32 @@ class QuillEditorUI {
     document
       .getElementById("closeAllTabs")
       ?.addEventListener("click", () => this.closeAllTabs());
+  }
+
+  setupWorkspacePersistence() {
+    // Override treeView's setWorkspace to save session
+    if (window.treeView && window.treeView.setWorkspace) {
+      const originalSetWorkspace = window.treeView.setWorkspace.bind(
+        window.treeView,
+      );
+      window.treeView.setWorkspace = (path, items) => {
+        originalSetWorkspace(path, items);
+        setTimeout(() => this.saveSession(), 500);
+      };
+    }
+
+    // Monitor tree view expansions
+    if (window.treeView && window.treeView.container) {
+      window.treeView.container.addEventListener("click", () => {
+        setTimeout(() => this.saveSession(), 1000);
+      });
+    }
+  }
+
+  initializeWorkspacePersistence() {
+    setTimeout(() => {
+      this.setupWorkspacePersistence();
+    }, 2000);
   }
 
   setupElectronListeners() {
@@ -146,6 +226,83 @@ class QuillEditorUI {
     window.electronAPI.onDebugStop(() => {
       this.stopCode();
     });
+
+    // Session persistence listeners
+    window.electronAPI.onSessionLoaded((event, session) => {
+      console.log("Session loaded:", session);
+
+      // Restore tabs
+      if (session.tabs && session.tabs.length > 0) {
+        this.restoreTabs(session.tabs);
+      } else {
+        this.createNewTab();
+      }
+
+      // Restore layout
+      if (session.layout) {
+        // Restore active panel
+        if (session.layout.activePanel) {
+          this.switchSidebarPanel(session.layout.activePanel);
+        }
+
+        // Restore console height
+        if (session.layout.consoleHeight) {
+          const consolePanel = document.querySelector(".console-panel");
+          if (consolePanel) {
+            consolePanel.style.height = `${session.layout.consoleHeight}px`;
+          }
+        }
+
+        // Restore sidebar visibility
+        if (session.layout.sidebarVisible === false) {
+          // You might want to add a toggle sidebar button
+        }
+      }
+    });
+
+    window.electronAPI.onSaveSessionRequest(() => {
+      console.log("Save session requested");
+      this.saveSession();
+    });
+
+    window.electronAPI.onClearSessionRequest(() => {
+      if (
+        confirm(
+          "Clear all session data? This will reset your workspace and open files.",
+        )
+      ) {
+        window.electronAPI.clearSession().then(() => {
+          location.reload(); // Reload to start fresh
+        });
+      }
+    });
+
+    // Auto-save session periodically (every 30 seconds)
+    setInterval(() => {
+      this.saveSession();
+    }, 30000);
+
+    // Auto-save on tab changes
+    const originalSwitchTab = this.switchTab.bind(this);
+    this.switchTab = (tabId) => {
+      originalSwitchTab(tabId);
+      setTimeout(() => this.saveSession(), 100);
+    };
+
+    // Auto-save on editor changes (debounced)
+    let saveSessionTimeout;
+    const originalOnEditorInput = this.onEditorInput.bind(this);
+    this.onEditorInput = () => {
+      originalOnEditorInput();
+
+      if (saveSessionTimeout) {
+        clearTimeout(saveSessionTimeout);
+      }
+
+      saveSessionTimeout = setTimeout(() => {
+        this.saveSession();
+      }, 2000);
+    };
   }
 
   setupActivityBar() {
@@ -734,6 +891,195 @@ class QuillEditorUI {
     return language;
   }
 
+  //   ========= SESSION
+  // Add new method to load session
+  async loadSession() {
+    if (window.electronAPI && window.electronAPI.loadSession) {
+      try {
+        const session = await window.electronAPI.loadSession();
+
+        // Apply settings
+        if (session.settings) {
+          this.settings = { ...this.settings, ...session.settings };
+          this.applySettings();
+        }
+
+        // Restore workspace if any
+        if (session.workspace && window.treeView) {
+          // We'll restore workspace after a delay to ensure treeView is initialized
+          setTimeout(() => {
+            if (window.treeView && session.workspace.path) {
+              window.treeView.setWorkspace(
+                session.workspace.path,
+                session.workspace.items || [],
+              );
+            }
+          }, 1000);
+        }
+
+        // Restore tabs if any (will be done after session-loaded event)
+        return session;
+      } catch (error) {
+        console.error("Error loading session:", error);
+      }
+    }
+    return null;
+  }
+
+  // Add method to save session
+  async saveSession() {
+    if (!window.electronAPI || !window.electronAPI.saveSession) return;
+
+    // Gather open tabs data
+    const tabsData = this.tabs.map((tab) => ({
+      id: tab.id,
+      title: tab.title,
+      filePath: tab.filePath,
+      language: tab.language,
+      content: tab.content,
+      isDirty: tab.isDirty,
+    }));
+
+    // Gather workspace data
+    let workspaceData = null;
+    if (window.treeView && window.treeView.currentWorkspace) {
+      workspaceData = {
+        path: window.treeView.currentWorkspace,
+        items: window.treeView.treeData || [],
+        expanded: Array.from(window.treeView.expanded || []),
+      };
+    }
+
+    // Gather layout data
+    const layoutData = {
+      activePanel:
+        document.querySelector(".activity-item.active")?.dataset.panel ||
+        "files",
+      consoleHeight:
+        document.querySelector(".console-panel")?.offsetHeight || 200,
+      sidebarVisible:
+        document.querySelector(".sidebar").style.display !== "none",
+    };
+
+    // Save to electron
+    const sessionData = {
+      tabs: tabsData,
+      workspace: workspaceData,
+      layout: layoutData,
+      settings: this.settings,
+      lastSaved: new Date().toISOString(),
+    };
+
+    try {
+      await window.electronAPI.saveSession(sessionData);
+      console.log("Session saved");
+    } catch (error) {
+      console.error("Error saving session:", error);
+    }
+  }
+
+  // Add method to restore tabs from session
+  restoreTabs(tabsData) {
+    if (!tabsData || tabsData.length === 0) {
+      // Create initial tab if no saved tabs
+      this.createNewTab();
+      return;
+    }
+
+    // Clear existing tabs
+    this.tabs = [];
+    document.querySelectorAll(".tab").forEach((tab) => tab.remove());
+    document
+      .querySelectorAll(".editor-tab-item")
+      .forEach((item) => item.remove());
+
+    // Restore each tab
+    let firstTabId = null;
+    tabsData.forEach((tabData, index) => {
+      const tabId = this.createNewTab(
+        tabData.title,
+        tabData.content || "",
+        tabData.filePath,
+        tabData.language || "javascript",
+      );
+
+      const tab = this.tabs.find((t) => t.id === tabId);
+      if (tab) {
+        tab.isDirty = tabData.isDirty || false;
+        tab.filePath = tabData.filePath || null;
+
+        // Update tab element if dirty
+        if (tab.isDirty) {
+          const tabElement = document.querySelector(`.tab[data-id="${tabId}"]`);
+          if (tabElement) {
+            tabElement.classList.add("dirty");
+          }
+        }
+
+        if (index === 0) {
+          firstTabId = tabId;
+        }
+      }
+    });
+
+    // Switch to first tab
+    if (firstTabId) {
+      setTimeout(() => {
+        this.switchTab(firstTabId);
+      }, 100);
+    }
+
+    this.updateOpenEditorsList();
+  }
+
+  // Apply settings from session
+  applySettings() {
+    // Apply font size
+    if (this.codeEditor) {
+      this.codeEditor.style.fontSize = `${this.settings.fontSize}px`;
+      if (this.syntaxHighlight) {
+        this.syntaxHighlight.style.fontSize = `${this.settings.fontSize}px`;
+      }
+    }
+
+    // Apply tab size
+    if (this.codeEditor) {
+      this.codeEditor.style.tabSize = this.settings.tabSize;
+      if (this.syntaxHighlight) {
+        this.syntaxHighlight.style.tabSize = this.settings.tabSize;
+      }
+    }
+
+    // Apply word wrap
+    if (this.codeEditor) {
+      this.codeEditor.style.whiteSpace = this.settings.wordWrap
+        ? "pre-wrap"
+        : "pre";
+      if (this.syntaxHighlight) {
+        this.syntaxHighlight.style.whiteSpace = this.settings.wordWrap
+          ? "pre-wrap"
+          : "pre";
+      }
+    }
+
+    // Apply theme
+    if (this.settings.theme) {
+      document.body.className = `theme-${this.settings.theme}`;
+    }
+
+    // Update settings UI if elements exist
+    const fontSizeInput = document.getElementById("fontSize");
+    const tabSizeInput = document.getElementById("tabSize");
+    const wordWrapCheckbox = document.getElementById("wordWrap");
+    const themeSelect = document.getElementById("themeSelect");
+
+    if (fontSizeInput) fontSizeInput.value = this.settings.fontSize;
+    if (tabSizeInput) tabSizeInput.value = this.settings.tabSize;
+    if (wordWrapCheckbox) wordWrapCheckbox.checked = this.settings.wordWrap;
+    if (themeSelect) themeSelect.value = this.settings.theme;
+  }
+  // =========== SESSION END
+
   async saveFile() {
     const tab = this.getCurrentTab();
     if (!tab) return;
@@ -1027,10 +1373,24 @@ class QuillEditorUI {
 document.addEventListener("DOMContentLoaded", () => {
   window.editorUI = new QuillEditorUI();
 
-  // Initialize findReplace after a short delay to ensure DOM is ready
+  // Initialize findReplace after a short delay
   setTimeout(() => {
     if (window.editorUI && window.editorUI.setupFindReplace) {
       window.editorUI.setupFindReplace();
     }
   }, 100);
+
+  // Initialize workspace persistence
+  setTimeout(() => {
+    if (window.editorUI && window.editorUI.initializeWorkspacePersistence) {
+      window.editorUI.initializeWorkspacePersistence();
+    }
+  }, 2000);
+});
+
+//  beforeunload handler to save session
+window.addEventListener("beforeunload", () => {
+  if (window.editorUI && window.editorUI.saveSession) {
+    window.editorUI.saveSession();
+  }
 });
