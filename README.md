@@ -1,9 +1,12 @@
 # QuillEditor
 
-[![Build and Release](https://github.com/004Ongoro/quilleditor/actions/workflows/release.yml/badge.svg)](https://github.com/004Ongoro/quilleditor/actions/workflows/release.yml)
-[![Development Build](https://github.com/004Ongoro/quilleditor/actions/workflows/develop.yml/badge.svg)](https://github.com/004Ongoro/quilleditor/actions/workflows/develop.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/004Ongoro/quilleditor)](https://github.com/004Ongoro/quilleditor/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+![Build Status](https://github.com/004Ongoro/quill-editor/workflows/Build%20and%20Release/badge.svg)
+![Build Test](https://github.com/004Ongoro/quill-editor/workflows/Build%20Test/badge.svg)
+![CodeQL](https://github.com/004Ongoro/quill-editor/workflows/CodeQL/badge.svg)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/004Ongoro/quill-editor)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/004Ongoro/quill-editor/total)
+
+A lightweight code editor built with Electron.
 
 A **lightweight, cross‑platform desktop code editor** built with **Electron**, designed for developers who want a **fast, distraction‑free coding environment**. QuillEditor focuses on the essentials: write code, save files, debug, repeat — without the overhead and noise of large IDEs.
 
@@ -23,37 +26,36 @@ No heavy plugins, no bloated UI, no lag. Just a clean workspace that lets you fo
 
 ## 🚀 Features
 
-* **Lightweight & Fast**
+- **Lightweight & Fast**
   Optimized for performance, even when working with large files or low‑resource systems.
 
-* **Syntax Highlighting**
+- **Syntax Highlighting**
   Built‑in support for popular languages such as:
+  - JavaScript
+  - HTML
+  - CSS
+  - Python
+  - JSON (and more planned)
 
-  * JavaScript
-  * HTML
-  * CSS
-  * Python
-  * JSON (and more planned)
-
-* **File Explorer**
+- **File Explorer**
   Tree‑view file explorer with basic file and folder operations.
 
-* **Tabbed Editing**
+- **Tabbed Editing**
   Open and work on multiple files simultaneously with an intuitive tab system.
 
-* **Modern UI**
+- **Modern UI**
   Clean, minimal interface designed for clarity and focus.
 
-* **Cross‑Platform**
+- **Cross‑Platform**
   Runs on Windows, macOS, and Linux via Electron.
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Electron** – Desktop application framework
-* **HTML, CSS, JavaScript** – Core UI and logic
-* **Node.js** – File system and system‑level operations
+- **Electron** – Desktop application framework
+- **HTML, CSS, JavaScript** – Core UI and logic
+- **Node.js** – File system and system‑level operations
 
 ---
 
@@ -88,26 +90,26 @@ npm start
 
 ## 🧪 Development Workflow
 
-* **`main.js`** – Electron main process
-* **`preload.js`** – Secure bridge between Node.js and the renderer
-* **`renderer.js`** – UI logic and editor interactions
-* **`index.html` / `styles.css`** – Application UI
+- **`main.js`** – Electron main process
+- **`preload.js`** – Secure bridge between Node.js and the renderer
+- **`renderer.js`** – UI logic and editor interactions
+- **`index.html` / `styles.css`** – Application UI
 
 CI pipelines are set up using **GitHub Actions** for:
 
-* Development builds
-* Production releases
+- Development builds
+- Production releases
 
 ---
 
 ## 🧭 Roadmap (Planned Features)
 
-* [ ] Built‑in debugger improvements
-* [ ] Search & replace
-* [ ] Custom themes (light / dark / minimal)
-* [ ] Keyboard shortcuts
-* [ ] Language‑specific enhancements
-* [ ] Plugin or extension system (lightweight)
+- [ ] Built‑in debugger improvements
+- [ ] Search & replace
+- [ ] Custom themes (light / dark / minimal)
+- [ ] Keyboard shortcuts
+- [ ] Language‑specific enhancements
+- [ ] Plugin or extension system (lightweight)
 
 ---
 
@@ -135,9 +137,9 @@ This project is licensed under the **MIT License** — you are free to use, modi
 **George Ongoro**
 Software Engineer • Builder • Minimalist Tools Advocate
 
-* GitHub: [https://github.com/004Ongoro](https://github.com/004Ongoro)
-* Website: [https://ongoro.top](https://ongoro.top)
+- GitHub: [https://github.com/004Ongoro](https://github.com/004Ongoro)
+- Website: [https://ongoro.top](https://ongoro.top)
 
 ---
 
-> *QuillEditor — write code, not distractions.* ✍️
+> _QuillEditor — write code, not distractions._ ✍️
