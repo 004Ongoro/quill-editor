@@ -2,40 +2,108 @@ class IndentGuidesManager {
   constructor(editorUI) {
     this.ui = editorUI;
     this.editor = editorUI.codeEditor;
-    this.container = document.getElementById("indentGuides");
+    this.container = null;
     this.settings = editorUI.settings;
 
     this.guides = [];
     this.tabSize = 4;
-    this.charWidth = 0;
-    this.lineHeight = 0;
+    this.charWidth = 8.4; // Default monospace character width
+    this.lineHeight = 21;
+    this.paddingLeft = 10; // Editor padding
 
-    this.setup();
-    this.setupEventListeners();
+    this.visible = true;
+
+    this.init();
   }
 
-  setup() {
-    if (!this.container) {
-      // Create container if it doesn't exist
-      this.container = document.createElement("div");
-      this.container.className = "indent-guides-container";
-      this.container.id = "indentGuides";
+  init() {
+    this.createContainer();
+    this.calculateMetrics();
+    this.setupEventListeners();
+    this.renderGuides();
 
-      const editorContainer = document.querySelector(".editor-container");
-      if (editorContainer) {
-        const lineNumbers = document.getElementById("lineNumbers");
-        editorContainer.insertBefore(this.container, lineNumbers.nextSibling);
-      }
+    // Initial render
+    setTimeout(() => {
+      this.updateAll();
+    }, 100);
+  }
+
+  createContainer() {
+    // Remove existing container if any
+    const existing = document.getElementById("indentGuides");
+    if (existing) {
+      existing.remove();
     }
 
-    this.calculateMetrics();
-    this.renderGuides();
+    // Create new container
+    this.container = document.createElement("div");
+    this.container.className = "indent-guides-container";
+    this.container.id = "indentGuides";
+
+    // Make container absolutely positioned and tall
+    this.container.style.position = "absolute";
+    this.container.style.top = "0";
+    this.container.style.left = "50px"; // Same as line numbers
+    this.container.style.right = "0";
+    this.container.style.bottom = "0";
+    this.container.style.overflow = "hidden";
+    this.container.style.pointerEvents = "none";
+    this.container.style.zIndex = "0";
+
+    // Insert after line numbers
+    const lineNumbers = document.getElementById("lineNumbers");
+    const editorContainer = document.querySelector(".editor-container");
+
+    if (lineNumbers && editorContainer) {
+      editorContainer.insertBefore(this.container, lineNumbers.nextSibling);
+    } else if (editorContainer) {
+      editorContainer.appendChild(this.container);
+    }
+  }
+
+  calculateMetrics() {
+    try {
+      // Get computed styles
+      const computedStyle = window.getComputedStyle(this.editor);
+
+      // Calculate character width more accurately
+      const testSpan = document.createElement("span");
+      testSpan.style.fontFamily = computedStyle.fontFamily;
+      testSpan.style.fontSize = computedStyle.fontSize;
+      testSpan.style.position = "fixed";
+      testSpan.style.visibility = "hidden";
+      testSpan.style.whiteSpace = "pre";
+      testSpan.textContent = " ";
+
+      document.body.appendChild(testSpan);
+      const rect = testSpan.getBoundingClientRect();
+      this.charWidth = rect.width || 8.4;
+      document.body.removeChild(testSpan);
+
+      // Get line height
+      this.lineHeight = parseFloat(computedStyle.lineHeight) || 21;
+
+      // Get padding
+      this.paddingLeft = parseFloat(computedStyle.paddingLeft) || 10;
+
+      // Get tab size from settings
+      this.tabSize = this.settings?.tabSize || 4;
+
+      console.log("Indent guide metrics:", {
+        charWidth: this.charWidth,
+        lineHeight: this.lineHeight,
+        paddingLeft: this.paddingLeft,
+        tabSize: this.tabSize,
+      });
+    } catch (error) {
+      console.error("Error calculating metrics:", error);
+    }
   }
 
   setupEventListeners() {
-    // Update on editor changes
+    // Update on editor content changes
     this.editor.addEventListener("input", () => {
-      this.updateGuides();
+      this.updateActiveGuides();
     });
 
     // Update on scroll
@@ -44,23 +112,31 @@ class IndentGuidesManager {
     });
 
     // Update on resize
-    window.addEventListener("resize", () => {
+    const resizeObserver = new ResizeObserver(() => {
       this.calculateMetrics();
       this.renderGuides();
     });
 
+    if (this.editor) {
+      resizeObserver.observe(this.editor);
+    }
+
     // Update on cursor movement
     this.editor.addEventListener("keyup", () => {
-      this.updateActiveGuide();
+      this.updateActiveGuides();
     });
 
     this.editor.addEventListener("click", () => {
-      this.updateActiveGuide();
+      this.updateActiveGuides();
+    });
+
+    this.editor.addEventListener("mouseup", () => {
+      this.updateActiveGuides();
     });
 
     // Update when settings change
     if (this.ui) {
-      // Listen for settings changes
+      // Override applySettings to include updates
       const originalApplySettings = this.ui.applySettings?.bind(this.ui);
       if (originalApplySettings) {
         this.ui.applySettings = () => {
@@ -71,154 +147,145 @@ class IndentGuidesManager {
     }
   }
 
-  calculateMetrics() {
-    // Calculate character width
-    const tempSpan = document.createElement("span");
-    tempSpan.style.fontFamily = window.getComputedStyle(this.editor).fontFamily;
-    tempSpan.style.fontSize = window.getComputedStyle(this.editor).fontSize;
-    tempSpan.style.position = "absolute";
-    tempSpan.style.visibility = "hidden";
-    tempSpan.textContent = " ";
-
-    document.body.appendChild(tempSpan);
-    this.charWidth = tempSpan.getBoundingClientRect().width;
-    document.body.removeChild(tempSpan);
-
-    // Calculate line height
-    const computedStyle = window.getComputedStyle(this.editor);
-    this.lineHeight = parseFloat(computedStyle.lineHeight) || 21;
-
-    // Get tab size from settings
-    this.tabSize = this.settings?.tabSize || 4;
-  }
-
   renderGuides() {
+    if (!this.container) return;
+
+    // Clear existing guides
     this.container.innerHTML = "";
     this.guides = [];
 
-    // Create guides for multiple indentation levels
-    const maxIndentLevels = 20;
-    const editorWidth = this.editor.clientWidth;
-    const maxGuides = Math.floor(editorWidth / (this.charWidth * this.tabSize));
+    // Calculate how many guides we need based on editor width
+    const editorWidth = this.editor.clientWidth || 800;
+    const maxGuides = Math.floor(
+      (editorWidth - this.paddingLeft) / (this.charWidth * this.tabSize),
+    );
 
-    for (let i = 1; i <= Math.min(maxIndentLevels, maxGuides); i++) {
+    // Create guides (up to 20 levels max)
+    const guideCount = Math.min(20, maxGuides);
+
+    // Calculate total content height
+    const contentHeight = Math.max(
+      this.editor.scrollHeight,
+      this.editor.clientHeight * 10, // Make guides 10x viewport height
+    );
+
+    for (let i = 1; i <= guideCount; i++) {
       const guide = document.createElement("div");
       guide.className = "indent-guide";
-      guide.style.left = `${i * this.tabSize * this.charWidth}px`;
       guide.dataset.level = i;
+
+      // Position the guide
+      guide.style.position = "absolute";
+      guide.style.left = `${this.paddingLeft + i * this.tabSize * this.charWidth}px`;
+      guide.style.top = "0";
+
+      // Make guides very tall to cover the entire document
+      guide.style.height = `${contentHeight * 2}px`; // Double the content height
+      guide.style.width = "1px";
+      guide.style.zIndex = "0";
+      guide.style.pointerEvents = "none";
 
       this.container.appendChild(guide);
       this.guides.push(guide);
     }
 
+    // Update based on current content
+    this.updateActiveGuides();
     this.updateGuidePositions();
-    this.updateActiveGuide();
   }
 
-  updateGuides() {
-    // Recalculate if tab size changed
-    const newTabSize = this.settings?.tabSize || 4;
-    if (newTabSize !== this.tabSize) {
-      this.tabSize = newTabSize;
-      this.renderGuides();
-      return;
-    }
-
-    this.updateGuidePositions();
-    this.updateActiveGuide();
+  updateAll() {
+    this.calculateMetrics();
+    this.renderGuides();
   }
 
   updateGuidePositions() {
+    if (!this.container || !this.editor) return;
+
     const scrollTop = this.editor.scrollTop;
-    const scrollLeft = this.editor.scrollLeft;
 
-    // Update container position
-    this.container.style.transform = `translateX(-${scrollLeft}px)`;
-    this.container.style.top = `${-scrollTop}px`;
-
-    // Get visible content
-    const content = this.editor.value;
-    const lines = content.split("\n");
-
-    // Calculate which guides should be active based on content
-    const visibleLines = this.getVisibleLineRange();
-
-    // Reset all guides to inactive
     this.guides.forEach((guide) => {
-      guide.classList.remove("active");
-    });
-
-    // Find indent levels used in visible lines
-    const activeLevels = new Set();
-
-    for (
-      let i = visibleLines.start;
-      i <= visibleLines.end && i < lines.length;
-      i++
-    ) {
-      const line = lines[i];
-      if (!line.trim()) continue; // Skip empty lines
-
-      // Calculate indentation level
-      const leadingSpaces = line.match(/^(\s*)/)[1];
-      const indentCount = this.countIndent(leadingSpaces);
-
-      // Mark all levels up to this one as potentially active
-      for (let level = 1; level <= indentCount; level++) {
-        activeLevels.add(level);
-      }
-    }
-
-    // Set active guides
-    activeLevels.forEach((level) => {
-      const guide = this.guides.find(
-        (g) => parseInt(g.dataset.level) === level,
-      );
-      if (guide) {
-        guide.classList.add("active");
-      }
+      guide.style.top = `-${scrollTop}px`;
     });
   }
 
-  updateActiveGuide() {
+  updateActiveGuides() {
+    if (!this.guides.length) return;
+
+    // Get current cursor position
     const cursorPos = this.editor.selectionStart;
     const textBeforeCursor = this.editor.value.substring(0, cursorPos);
+
+    // Get current line from cursor position
     const lines = textBeforeCursor.split("\n");
-    const currentLine = lines[lines.length - 1];
+    const currentLineIndex = lines.length - 1;
+    const currentLine = lines[currentLineIndex] || "";
 
     // Calculate current indentation level
-    const leadingSpaces = currentLine.match(/^(\s*)/)[1];
-    const currentIndent = this.countIndent(leadingSpaces);
+    const currentIndent = this.getIndentLevel(currentLine);
 
-    // Highlight guide for current indent level
-    this.guides.forEach((guide) => {
-      const level = parseInt(guide.dataset.level);
-      guide.classList.toggle("active", level === currentIndent);
-    });
-  }
+    // Get all lines to find which indent levels are actually used
+    const allLines = this.editor.value.split("\n");
+    const usedLevels = new Set();
 
-  countIndent(text) {
-    if (!text) return 0;
+    // Check a range around visible area for efficiency
+    const visibleRange = this.getVisibleLineRange();
+    const start = Math.max(0, visibleRange.start - 5);
+    const end = Math.min(allLines.length - 1, visibleRange.end + 5);
 
-    // Count tabs as 1, spaces as fraction of tab size
-    let count = 0;
-    for (let i = 0; i < text.length; i++) {
-      if (text[i] === "\t") {
-        count += 1;
-      } else if (text[i] === " ") {
-        // Count spaces as part of tab stops
-        if (this.settings?.tabSize) {
-          count += 1 / this.settings.tabSize;
-        } else {
-          count += 0.25; // Default 4 spaces per tab
+    for (let i = start; i <= end; i++) {
+      const line = allLines[i];
+      if (line && line.trim()) {
+        // Skip empty lines
+        const level = this.getIndentLevel(line);
+        if (level > 0) {
+          usedLevels.add(level);
         }
       }
     }
 
-    return Math.floor(count);
+    // Update guide states
+    this.guides.forEach((guide) => {
+      const level = parseInt(guide.dataset.level);
+
+      // Remove all state classes
+      guide.classList.remove("active", "highlighted");
+
+      // Add appropriate classes
+      if (usedLevels.has(level)) {
+        guide.classList.add("active");
+      }
+
+      if (level === currentIndent) {
+        guide.classList.add("highlighted");
+      }
+    });
+  }
+
+  getIndentLevel(line) {
+    if (!line) return 0;
+
+    let spaces = 0;
+    let tabs = 0;
+
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === " ") {
+        spaces++;
+      } else if (line[i] === "\t") {
+        tabs++;
+      } else {
+        break; // Stop at first non-whitespace character
+      }
+    }
+
+    // Convert spaces to tab equivalents
+    const spaceTabs = Math.floor(spaces / this.tabSize);
+    return tabs + spaceTabs;
   }
 
   getVisibleLineRange() {
+    if (!this.editor) return { start: 0, end: 10 };
+
     const scrollTop = this.editor.scrollTop;
     const clientHeight = this.editor.clientHeight;
 
@@ -226,32 +293,61 @@ class IndentGuidesManager {
     const endLine = Math.ceil((scrollTop + clientHeight) / this.lineHeight);
 
     return {
-      start: Math.max(0, startLine - 1),
-      end: endLine + 1,
+      start: Math.max(0, startLine),
+      end: Math.max(startLine, endLine),
     };
   }
 
   onSettingsChanged() {
-    if (this.settings) {
-      this.settings = this.ui.settings;
-      this.calculateMetrics();
-      this.renderGuides();
+    this.calculateMetrics();
+    this.renderGuides();
+  }
+
+  show() {
+    this.visible = true;
+    if (this.container) {
+      this.container.classList.add("visible");
+    }
+    this.updateAll();
+  }
+
+  hide() {
+    this.visible = false;
+    if (this.container) {
+      this.container.classList.remove("visible");
     }
   }
 
-  // Public method to refresh guides
+  toggle() {
+    if (this.visible) {
+      this.hide();
+    } else {
+      this.show();
+    }
+    return this.visible;
+  }
+
   refresh() {
-    this.calculateMetrics();
-    this.renderGuides();
+    this.updateAll();
   }
 }
 
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   // Wait for editorUI to be available
-  setTimeout(() => {
+  const initInterval = setInterval(() => {
     if (window.editorUI) {
-      window.indentGuidesManager = new IndentGuidesManager(window.editorUI);
+      clearInterval(initInterval);
+
+      // Initialize with a small delay to ensure DOM is ready
+      setTimeout(() => {
+        try {
+          window.indentGuidesManager = new IndentGuidesManager(window.editorUI);
+          console.log("Indent guides initialized");
+        } catch (error) {
+          console.error("Failed to initialize indent guides:", error);
+        }
+      }, 500);
     }
-  }, 1500);
+  }, 100);
 });

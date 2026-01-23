@@ -591,3 +591,26 @@ app.on("before-quit", () => {
     mainWindow.webContents.send("save-session-request");
   }
 });
+
+function saveWindowState() {
+  // Check if window exists and isn't destroyed
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  try {
+    const bounds = mainWindow.getBounds();
+    const session = loadSession();
+
+    session.layout = session.layout || {};
+    session.layout.windowState = {
+      width: bounds.width,
+      height: bounds.height,
+      x: bounds.x,
+      y: bounds.y,
+      isMaximized: mainWindow.isMaximized(),
+    };
+
+    saveSession(session);
+  } catch (error) {
+    console.error("Error saving window state:", error);
+  }
+}

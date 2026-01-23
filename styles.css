@@ -1528,7 +1528,7 @@ body {
 }
 
 /* ========================================= */
-/* Indent Guidelines */
+/* Indent Guidelines - 
 /* ========================================= */
 
 .indent-guides-container {
@@ -1538,28 +1538,44 @@ body {
   right: 0;
   bottom: 0;
   pointer-events: none;
-  z-index: 1;
+  z-index: 0;
   overflow: hidden;
+}
+
+.indent-guides-container.visible {
+  display: block;
 }
 
 .indent-guide {
   position: absolute;
   top: 0;
-  bottom: 0;
-  border-left: 1px solid rgba(100, 100, 100, 0.2);
+  border-left: 1px solid rgba(90, 93, 94, 0.3);
+  opacity: 0.5;
+  height: 100000px; /* Very tall to cover scrolling */
+  width: 1px;
 }
 
 .indent-guide.active {
-  border-left: 1px solid rgba(100, 100, 100, 0.4);
+  opacity: 0.8;
+  border-left-color: rgba(100, 100, 100, 0.5);
+}
+
+.indent-guide.highlighted {
+  border-left: 1px solid rgba(0, 122, 204, 0.4);
+  opacity: 0.9;
 }
 
 /* Light theme adjustments */
 body.theme-light .indent-guide {
-  border-left: 1px solid rgba(150, 150, 150, 0.2);
+  border-left: 1px solid rgba(200, 200, 200, 0.4);
 }
 
 body.theme-light .indent-guide.active {
-  border-left: 1px solid rgba(150, 150, 150, 0.4);
+  border-left-color: rgba(150, 150, 150, 0.6);
+}
+
+body.theme-light .indent-guide.highlighted {
+  border-left-color: rgba(0, 122, 204, 0.5);
 }
 
 /* High contrast theme adjustments */
@@ -1568,16 +1584,11 @@ body.theme-high-contrast .indent-guide {
 }
 
 body.theme-high-contrast .indent-guide.active {
-  border-left: 1px solid rgba(255, 255, 255, 0.6);
+  border-left-color: rgba(255, 255, 255, 0.6);
 }
 
-/* Tab size indicator */
-.tab-size-indicator {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  border-left: 1px dashed rgba(0, 122, 204, 0.5);
-  pointer-events: none;
+body.theme-high-contrast .indent-guide.highlighted {
+  border-left-color: rgba(0, 122, 204, 0.8);
 }
 
 /* Editor container adjustment */

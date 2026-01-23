@@ -659,7 +659,9 @@ class QuillEditorUI {
     this.updateStatusBar();
 
     if (window.indentGuidesManager) {
-      window.indentGuidesManager.updateGuides();
+      setTimeout(() => {
+        window.indentGuidesManager.updateActiveGuides();
+      }, 10);
     }
   }
 
@@ -945,17 +947,23 @@ class QuillEditorUI {
   // handle guidelines for indent
 
   toggleIndentGuides() {
-    const container = document.getElementById("indentGuides");
-    if (container) {
+    this.indentGuidesEnabled = !this.indentGuidesEnabled;
+
+    if (window.indentGuidesManager) {
       if (this.indentGuidesEnabled) {
-        container.style.display = "block";
-        if (window.indentGuidesManager) {
-          window.indentGuidesManager.refresh();
-        }
+        window.indentGuidesManager.show();
       } else {
-        container.style.display = "none";
+        window.indentGuidesManager.hide();
       }
     }
+
+    // Update UI
+    const indentGuidesToggle = document.getElementById("indentGuidesToggle");
+    if (indentGuidesToggle) {
+      indentGuidesToggle.checked = this.indentGuidesEnabled;
+    }
+
+    this.saveSession();
   }
 
   //   ========= SESSION
@@ -1033,6 +1041,7 @@ class QuillEditorUI {
       layout: layoutData,
       settings: this.settings,
       lastSaved: new Date().toISOString(),
+      indentGuides: this.indentGuidesEnabled,
     };
 
     try {
@@ -1094,6 +1103,11 @@ class QuillEditorUI {
     }
 
     this.updateOpenEditorsList();
+
+    if (session.indentGuides !== undefined) {
+      this.indentGuidesEnabled = session.indentGuides;
+      this.toggleIndentGuides();
+    }
   }
 
   // Apply settings from session
@@ -1132,15 +1146,27 @@ class QuillEditorUI {
     }
 
     // apply indent guides
-    if (window.indentGuidesManager) {
-      window.indentGuidesManager.refresh();
-    }
 
     const indentGuidesToggle = document.getElementById("indentGuidesToggle");
     if (indentGuidesToggle) {
       indentGuidesToggle.checked = this.indentGuidesEnabled;
+      if (window.indentGuidesManager) {
+        if (this.indentGuidesEnabled) {
+          window.indentGuidesManager.show();
+        } else {
+          window.indentGuidesManager.hide();
+        }
+      }
     }
-    this.toggleIndentGuides();
+
+    if (window.indentGuidesManager) {
+      window.indentGuidesManager.refresh();
+    }
+
+    // if (indentGuidesToggle) {
+    //   indentGuidesToggle.checked = this.indentGuidesEnabled;
+    // }
+    // this.toggleIndentGuides();
 
     // Update settings UI if elements exist
     const fontSizeInput = document.getElementById("fontSize");
