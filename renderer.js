@@ -7,11 +7,15 @@ class QuillEditorUI {
     this.currentLanguage = "javascript";
     this.isDirty = false;
     this.nextTabId = 1;
+    this.indentGuidesEnabled = true;
     this.settings = {
       fontSize: 14,
       tabSize: 4,
       wordWrap: true,
       theme: "dark",
+      autoClosingPairs: true,
+      autoIndent: true,
+      autoCloseTags: true,
     };
 
     this.initializeElements();
@@ -129,6 +133,49 @@ class QuillEditorUI {
     if (themeSelect) {
       themeSelect.addEventListener("change", (e) => {
         this.settings.theme = e.target.value;
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    //Handle indent guides
+
+    const indentGuidesToggle = document.getElementById("indentGuidesToggle");
+
+    if (indentGuidesToggle) {
+      indentGuidesToggle.addEventListener("change", (e) => {
+        this.indentGuidesEnabled = e.target.checked;
+        this.toggleIndentGuides();
+        this.saveSession();
+      });
+    }
+
+    // Other event listeners
+
+    const autoClosingPairsCheckbox =
+      document.getElementById("autoClosingPairs");
+    const autoIndentCheckbox = document.getElementById("autoIndent");
+    const autoCloseTagsCheckbox = document.getElementById("autoCloseTags");
+
+    if (autoClosingPairsCheckbox) {
+      autoClosingPairsCheckbox.addEventListener("change", (e) => {
+        this.settings.autoClosingPairs = e.target.checked;
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    if (autoIndentCheckbox) {
+      autoIndentCheckbox.addEventListener("change", (e) => {
+        this.settings.autoIndent = e.target.checked;
+        this.applySettings();
+        this.saveSession();
+      });
+    }
+
+    if (autoCloseTagsCheckbox) {
+      autoCloseTagsCheckbox.addEventListener("change", (e) => {
+        this.settings.autoCloseTags = e.target.checked;
         this.applySettings();
         this.saveSession();
       });
@@ -610,6 +657,10 @@ class QuillEditorUI {
 
     // Update status bar
     this.updateStatusBar();
+
+    if (window.indentGuidesManager) {
+      window.indentGuidesManager.updateGuides();
+    }
   }
 
   debounceHighlight() {
@@ -891,8 +942,23 @@ class QuillEditorUI {
     return language;
   }
 
+  // handle guidelines for indent
+
+  toggleIndentGuides() {
+    const container = document.getElementById("indentGuides");
+    if (container) {
+      if (this.indentGuidesEnabled) {
+        container.style.display = "block";
+        if (window.indentGuidesManager) {
+          window.indentGuidesManager.refresh();
+        }
+      } else {
+        container.style.display = "none";
+      }
+    }
+  }
+
   //   ========= SESSION
-  // Add new method to load session
   async loadSession() {
     if (window.electronAPI && window.electronAPI.loadSession) {
       try {
@@ -906,7 +972,6 @@ class QuillEditorUI {
 
         // Restore workspace if any
         if (session.workspace && window.treeView) {
-          // We'll restore workspace after a delay to ensure treeView is initialized
           setTimeout(() => {
             if (window.treeView && session.workspace.path) {
               window.treeView.setWorkspace(
@@ -978,7 +1043,6 @@ class QuillEditorUI {
     }
   }
 
-  // Add method to restore tabs from session
   restoreTabs(tabsData) {
     if (!tabsData || tabsData.length === 0) {
       // Create initial tab if no saved tabs
@@ -1067,6 +1131,17 @@ class QuillEditorUI {
       document.body.className = `theme-${this.settings.theme}`;
     }
 
+    // apply indent guides
+    if (window.indentGuidesManager) {
+      window.indentGuidesManager.refresh();
+    }
+
+    const indentGuidesToggle = document.getElementById("indentGuidesToggle");
+    if (indentGuidesToggle) {
+      indentGuidesToggle.checked = this.indentGuidesEnabled;
+    }
+    this.toggleIndentGuides();
+
     // Update settings UI if elements exist
     const fontSizeInput = document.getElementById("fontSize");
     const tabSizeInput = document.getElementById("tabSize");
@@ -1077,6 +1152,26 @@ class QuillEditorUI {
     if (tabSizeInput) tabSizeInput.value = this.settings.tabSize;
     if (wordWrapCheckbox) wordWrapCheckbox.checked = this.settings.wordWrap;
     if (themeSelect) themeSelect.value = this.settings.theme;
+
+    if (window.autoCompleteEngine) {
+      window.autoCompleteEngine.autoClosingPairs =
+        this.settings.autoClosingPairs;
+      window.autoCompleteEngine.autoIndent = this.settings.autoIndent;
+      window.autoCompleteEngine.autoCloseTags = this.settings.autoCloseTags;
+    }
+
+    // Update settings UI
+    const autoClosingPairsCheckbox =
+      document.getElementById("autoClosingPairs");
+    const autoIndentCheckbox = document.getElementById("autoIndent");
+    const autoCloseTagsCheckbox = document.getElementById("autoCloseTags");
+
+    if (autoClosingPairsCheckbox)
+      autoClosingPairsCheckbox.checked = this.settings.autoClosingPairs;
+    if (autoIndentCheckbox)
+      autoIndentCheckbox.checked = this.settings.autoIndent;
+    if (autoCloseTagsCheckbox)
+      autoCloseTagsCheckbox.checked = this.settings.autoCloseTags;
   }
   // =========== SESSION END
 

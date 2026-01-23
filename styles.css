@@ -1526,3 +1526,61 @@ body {
 .fr-row.hidden {
   display: none;
 }
+
+/* ========================================= */
+/* Indent Guidelines */
+/* ========================================= */
+
+.indent-guides-container {
+  position: absolute;
+  top: 0;
+  left: 50px; /* Same as line numbers width */
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.indent-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid rgba(100, 100, 100, 0.2);
+}
+
+.indent-guide.active {
+  border-left: 1px solid rgba(100, 100, 100, 0.4);
+}
+
+/* Light theme adjustments */
+body.theme-light .indent-guide {
+  border-left: 1px solid rgba(150, 150, 150, 0.2);
+}
+
+body.theme-light .indent-guide.active {
+  border-left: 1px solid rgba(150, 150, 150, 0.4);
+}
+
+/* High contrast theme adjustments */
+body.theme-high-contrast .indent-guide {
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+body.theme-high-contrast .indent-guide.active {
+  border-left: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Tab size indicator */
+.tab-size-indicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed rgba(0, 122, 204, 0.5);
+  pointer-events: none;
+}
+
+/* Editor container adjustment */
+.editor-container {
+  position: relative;
+}

@@ -203,6 +203,33 @@
           <div class="panel-content">
             <div class="settings-section">
               <h4>Editor</h4>
+
+              <div class="setting-item">
+                <label>
+                  <input type="checkbox" id="indentGuidesToggle" checked />
+                  Show Indent Guides
+                </label>
+              </div>
+
+              <div class="setting-item">
+                <label>
+                  <input type="checkbox" id="autoClosingPairs" checked />
+                  Auto Closing Pairs
+                </label>
+              </div>
+              <div class="setting-item">
+                <label>
+                  <input type="checkbox" id="autoIndent" checked />
+                  Auto Indent
+                </label>
+              </div>
+              <div class="setting-item">
+                <label>
+                  <input type="checkbox" id="autoCloseTags" checked />
+                  Auto Close HTML Tags
+                </label>
+              </div>
+
               <div class="setting-item">
                 <label for="fontSize">Font Size:</label>
                 <input
@@ -291,6 +318,7 @@
 
         <div class="editor-container">
           <div class="line-numbers" id="lineNumbers">1</div>
+          <div class="indent-guides-container" id="indentGuides"></div>
           <textarea
             id="codeEditor"
             class="code-editor"
@@ -463,5 +491,7 @@
     <script src="editor/debugger.js"></script>
     <script src="editor/treeview.js"></script>
     <script src="editor/contextmenu.js"></script>
+    <script src="editor/autocomplete.js"></script>
+    <script src="editor/indentguides.js"></script>
   </body>
 </html>
