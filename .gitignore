@@ -2,7 +2,7 @@
 dist/
 out/
 release/
-release.js
+scripts/release.js
 
 # Dependencies
 node_modules/
