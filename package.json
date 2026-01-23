@@ -12,7 +12,7 @@
     "build:linux": "electron-builder --linux",
     "build:all": "npm run build:win && npm run build:mac && npm run build:linux",
     "release": "npm run build:all",
-    "release:prepare": "node release.js",
+    "release:prepare": "node scripts/release.js",
     "test": "node test/basic.test.js",
     "test:ci": "npm test && npm run build",
     "pack": "electron-builder --dir",
