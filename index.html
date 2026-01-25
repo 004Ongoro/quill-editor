@@ -189,9 +189,24 @@
             <h3>SOURCE CONTROL</h3>
           </div>
           <div class="panel-content">
-            <div class="git-empty">
+            <div class="git-controls" style="padding: 10px">
+              <input
+                type="text"
+                id="commitMessageInput"
+                placeholder="Message (Ctrl+Enter to commit)"
+                style="width: 100%; margin-bottom: 8px"
+              />
+              <button
+                id="commitSyncBtn"
+                class="btn btn-primary"
+                style="width: 100%"
+              >
+                <i class="fas fa-cloud-upload-alt"></i> Commit & Sync
+              </button>
+            </div>
+            <div class="git-empty" id="gitEmptyState">
               <i class="fas fa-code-branch"></i>
-              <p>Git integration not available</p>
+              <p>No changes detected</p>
             </div>
           </div>
         </div>
@@ -390,6 +405,14 @@
             >
           </div>
           <div class="status-bar-right">
+            <span
+              class="status-item"
+              id="gitSyncBtn"
+              title="Synchronize Changes (Pull/Push)"
+            >
+              <i class="fas fa-sync" id="syncIcon"></i>
+              <span id="syncStatusText">Sync</span>
+            </span>
             <span class="status-item" id="fileInfo"
               ><i class="fas fa-file"></i> Untitled-1.js</span
             >

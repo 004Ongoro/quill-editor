@@ -2,7 +2,7 @@ const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
-const { exec } = require("child_process");
+const { exec, spawn } = require("child_process");
 
 let mainWindow = null;
 let filePath = null;
@@ -21,6 +21,25 @@ function runGitCommand(command, cwd) {
     });
   });
 }
+
+function streamCommand(command, args, cwd, eventName) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, { cwd, shell: true });
+
+    child.stdout.on("data", (data) => {
+      mainWindow.webContents.send("git-log", data.toString()); // Stream to UI
+    });
+
+    child.stderr.on("data", (data) => {
+      mainWindow.webContents.send("git-log", `DEBUG: ${data.toString()}`); // Stream errors
+    });
+
+    child.on("close", (code) => {
+      resolve({ success: code === 0, code });
+    });
+  });
+}
+
 function createWindow() {
   const session = loadSession();
 
@@ -368,6 +387,29 @@ ipcMain.handle("read-file", async (event, path) => {
   } catch (error) {
     return { success: false, error: error.message };
   }
+});
+
+// IPCs to handle git operations
+ipcMain.handle("git-pull", async (event, cwd) => {
+  return await streamCommand("git", ["pull"], cwd);
+});
+
+ipcMain.handle("git-push", async (event, cwd) => {
+  return await streamCommand("git", ["push"], cwd);
+});
+
+ipcMain.handle("git-commit-sync", async (event, { cwd, message }) => {
+  mainWindow.webContents.send("git-log", "> git add .");
+  await streamCommand("git", ["add", "."], cwd);
+
+  mainWindow.webContents.send("git-log", `> git commit -m "${message}"`);
+  await streamCommand("git", ["commit", "-m", `"${message}"`], cwd);
+
+  mainWindow.webContents.send("git-log", "> git pull");
+  await streamCommand("git", ["pull"], cwd);
+
+  mainWindow.webContents.send("git-log", "> git push");
+  return await streamCommand("git", ["push"], cwd);
 });
 
 // App lifecycle events

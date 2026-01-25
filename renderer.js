@@ -66,6 +66,11 @@ class QuillEditorUI {
     // Console tabs
     this.consoleTabs = document.querySelectorAll(".console-tab");
     this.consoleContents = document.querySelectorAll(".console-content");
+
+    // git
+    this.gitSyncBtn = document.getElementById("gitSyncBtn");
+    this.syncIcon = document.getElementById("syncIcon");
+    this.syncStatusText = document.getElementById("syncStatusText");
   }
 
   // helper to normalize paths
@@ -92,6 +97,35 @@ class QuillEditorUI {
     this.codeEditor.addEventListener("select", () =>
       this.updateSelectionInfo(),
     );
+
+    // git button
+    this.gitSyncBtn?.addEventListener("click", () => this.handleGitSync());
+
+    //git ops
+    document
+      .getElementById("commitSyncBtn")
+      ?.addEventListener("click", async () => {
+        const message = document.getElementById("commitMessageInput").value;
+        if (!message) {
+          this.addConsoleMessage("Please enter a commit message", "warning");
+          return;
+        }
+
+        const cwd = window.treeView.currentWorkspace;
+        this.addConsoleMessage("Starting Commit & Sync...", "info");
+
+        const result = await window.electronAPI.invoke("git-commit-sync", {
+          cwd,
+          message,
+        });
+
+        if (result.success) {
+          this.addConsoleMessage("Changes committed and synced!", "success");
+          document.getElementById("commitMessageInput").value = "";
+        } else {
+          this.addConsoleMessage(`Error: ${result.error}`, "error");
+        }
+      });
 
     const fontSizeInput = document.getElementById("fontSize");
     const tabSizeInput = document.getElementById("tabSize");
@@ -302,7 +336,7 @@ class QuillEditorUI {
 
         // Restore sidebar visibility
         if (session.layout.sidebarVisible === false) {
-          // You might want to add a toggle sidebar button
+          /// ....
         }
       }
     });
@@ -321,6 +355,15 @@ class QuillEditorUI {
         window.electronAPI.clearSession().then(() => {
           location.reload(); // Reload to start fresh
         });
+      }
+    });
+
+    // listen for git syncing
+    window.electronAPI.onGitLog((event, message) => {
+      this.addConsoleMessage(message, "info");
+
+      if (this.consoleOutput) {
+        this.consoleOutput.scrollTop = this.consoleOutput.scrollHeight;
       }
     });
 
@@ -964,6 +1007,49 @@ class QuillEditorUI {
     }
 
     this.saveSession();
+  }
+
+  // handle git sync
+
+  async handleGitSync() {
+    if (!window.treeView || !window.treeView.currentWorkspace) {
+      this.addConsoleMessage(
+        "No workspace opened for Git operations",
+        "warning",
+      );
+      return;
+    }
+
+    const cwd = window.treeView.currentWorkspace;
+
+    // Enter Loading State
+    this.gitSyncBtn.classList.add("syncing");
+    this.syncIcon.classList.add("fa-spin");
+    this.syncStatusText.textContent = "Syncing...";
+
+    try {
+      // Perform Pull then Push
+      const pullResult = await window.electronAPI.invoke("git-pull", cwd);
+      if (!pullResult.success) throw new Error(pullResult.error);
+
+      const pushResult = await window.electronAPI.invoke("git-push", cwd);
+      if (!pushResult.success) throw new Error(pushResult.error);
+
+      this.addConsoleMessage("Git Sync successful!", "success");
+    } catch (error) {
+      this.addConsoleMessage(`Git Sync failed: ${error.message}`, "error");
+      // Alert  of specific conflicts if they exist in the error string
+      if (error.message.includes("conflict")) {
+        alert(
+          "Merge conflicts detected. Please resolve them manually in the terminal.",
+        );
+      }
+    } finally {
+      // Reset UI State
+      this.gitSyncBtn.classList.remove("syncing");
+      this.syncIcon.classList.remove("fa-spin");
+      this.syncStatusText.textContent = "Sync";
+    }
   }
 
   //   ========= SESSION

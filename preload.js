@@ -65,6 +65,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onDebugRun: (callback) => ipcRenderer.on("debug-run", callback),
   onDebugStop: (callback) => ipcRenderer.on("debug-stop", callback),
 
+  // for git log
+  onGitLog: (callback) => ipcRenderer.on("git-log", callback),
+
   //folders
   onFolderOpened: (callback) => ipcRenderer.on("folder-opened", callback),
 

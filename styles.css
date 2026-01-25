@@ -1595,3 +1595,66 @@ body.theme-high-contrast .indent-guide.highlighted {
 .editor-container {
   position: relative;
 }
+/* ======================== GIT */
+
+/* Status Bar Sync Item Styling */
+#gitSyncBtn {
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#gitSyncBtn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Syncing Animation */
+#gitSyncBtn.syncing {
+  pointer-events: none;
+  color: var(--accent-yellow);
+}
+
+.fa-spin {
+  animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sidebar Git Controls */
+.git-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-bottom: 1px solid var(--tab-bg);
+  background: rgba(0, 0, 0, 0.1);
+}
+
+#commitMessageInput {
+  background-color: var(--editor-bg);
+  border: 1px solid #454545;
+  color: var(--text-primary);
+  padding: 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  resize: vertical;
+}
+
+#commitMessageInput:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+#commitSyncBtn {
+  font-weight: 600;
+  padding: 8px;
+  justify-content: center;
+}
