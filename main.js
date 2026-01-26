@@ -2,12 +2,13 @@ const { app, BrowserWindow, Menu, ipcMain, dialog } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
-const { exec, spawn } = require("child_process");
+const { exec, spawn, execSync } = require("child_process");
 
 let mainWindow = null;
 let filePath = null;
 const userDataPath = app.getPath("userData");
 const sessionFile = path.join(userDataPath, "session.json");
+let saveStateTimeout;
 
 // ===== run the git command =====
 function runGitCommand(command, cwd) {
@@ -102,36 +103,6 @@ function createWindow() {
     }, 500);
   });
 
-  function debounceSaveWindowState(immediate = false) {
-    if (saveStateTimeout) {
-      clearTimeout(saveStateTimeout);
-    }
-
-    if (immediate) {
-      saveWindowState();
-    } else {
-      saveStateTimeout = setTimeout(saveWindowState, 1000);
-    }
-  }
-
-  function saveWindowState() {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-
-    const bounds = mainWindow.getBounds();
-    const session = loadSession();
-
-    session.layout = session.layout || {};
-    session.layout.windowState = {
-      width: bounds.width,
-      height: bounds.height,
-      x: bounds.x,
-      y: bounds.y,
-      isMaximized: mainWindow.isMaximized(),
-    };
-
-    saveSession(session);
-  }
-
   // Open DevTools in development
   if (process.env.NODE_ENV === "development") {
     mainWindow.webContents.openDevTools();
@@ -144,6 +115,36 @@ function createWindow() {
 
   // Create application menu
   createMenu();
+}
+
+function debounceSaveWindowState(immediate = false) {
+  if (saveStateTimeout) {
+    clearTimeout(saveStateTimeout);
+  }
+
+  if (immediate) {
+    saveWindowState();
+  } else {
+    saveStateTimeout = setTimeout(saveWindowState, 1000);
+  }
+}
+
+function saveWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+
+  const bounds = mainWindow.getBounds();
+  const session = loadSession();
+
+  session.layout = session.layout || {};
+  session.layout.windowState = {
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
+    isMaximized: mainWindow.isMaximized(),
+  };
+
+  saveSession(session);
 }
 
 // Load session data
@@ -624,6 +625,22 @@ ipcMain.handle("clear-session", async () => {
     return { success: true };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+});
+
+// git branch check
+
+ipcMain.handle("git-get-branch", async (event, cwd) => {
+  try {
+    // Prints only the branch name; nothing in detached HEAD state
+    const branch = execSync("git branch --show-current", {
+      cwd,
+      encoding: "utf8",
+    });
+    return { success: true, branch: branch.trim() };
+  } catch (error) {
+    // Return an empty string if not a git repository
+    return { success: false, branch: "" };
   }
 });
 

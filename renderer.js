@@ -32,6 +32,7 @@ class QuillEditorUI {
 
     // Create initial tab
     this.createNewTab();
+    this.refreshGitStatus();
 
     console.log("QuillEditor UI initialized");
   }
@@ -71,6 +72,7 @@ class QuillEditorUI {
     this.gitSyncBtn = document.getElementById("gitSyncBtn");
     this.syncIcon = document.getElementById("syncIcon");
     this.syncStatusText = document.getElementById("syncStatusText");
+    this.branchNameElement = document.getElementById("branchName");
   }
 
   // helper to normalize paths
@@ -1052,6 +1054,23 @@ class QuillEditorUI {
     }
   }
 
+  async refreshGitStatus() {
+    if (!window.treeView || !window.treeView.currentWorkspace) {
+      this.branchNameElement.textContent = "no repo";
+      return;
+    }
+
+    const result = await window.electronAPI.invoke(
+      "git-get-branch",
+      window.treeView.currentWorkspace,
+    );
+    if (result.success && result.branch) {
+      this.branchNameElement.textContent = result.branch;
+    } else {
+      this.branchNameElement.textContent = "detached / no repo";
+    }
+  }
+
   //   ========= SESSION
   async loadSession() {
     if (window.electronAPI && window.electronAPI.loadSession) {
@@ -1348,6 +1367,7 @@ class QuillEditorUI {
         this.updateStatusBar();
         this.updateOpenEditorsList();
         this.addConsoleMessage(`Saved: ${path}`, "success");
+        this.refreshGitStatus();
       } else {
         this.addConsoleMessage(`Save failed: ${result.error}`, "error");
       }
