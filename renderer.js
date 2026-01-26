@@ -314,6 +314,19 @@ class QuillEditorUI {
     window.electronAPI.onSessionLoaded((event, session) => {
       console.log("Session loaded:", session);
 
+      if (session.layout) {
+        // Restore sidebar visibility
+        if (session.layout.sidebarVisible === false) {
+          const sidebar = document.querySelector(".sidebar");
+          if (sidebar) sidebar.style.display = "none";
+
+          // Remove active class from activity bar if sidebar is hidden
+          this.activityItems.forEach((item) => item.classList.remove("active"));
+        } else if (session.layout.activePanel) {
+          this.switchSidebarPanel(session.layout.activePanel);
+        }
+      }
+
       // Restore tabs
       if (session.tabs && session.tabs.length > 0) {
         this.restoreTabs(session.tabs);
@@ -410,9 +423,27 @@ class QuillEditorUI {
   }
 
   switchSidebarPanel(panelId) {
-    // Update activity bar
+    const sidebar = document.querySelector(".sidebar");
+    const currentActiveItem = document.querySelector(".activity-item.active");
+    const isAlreadyActive =
+      currentActiveItem && currentActiveItem.dataset.panel === panelId;
+
+    // Toggle Sidebar Visibility
+    if (isAlreadyActive) {
+      const isCollapsed = sidebar.style.display === "none";
+      sidebar.style.display = isCollapsed ? "flex" : "none";
+
+      if (!isCollapsed) {
+        currentActiveItem.classList.remove("active");
+        return;
+      }
+    } else {
+      // Ensure sidebar is visible when switching to a new panel
+      sidebar.style.display = "flex";
+    }
+
+    // Update activity bar icons
     this.activityItems.forEach((item) => {
-      // Only update active state for items that are actual panels
       if (item.dataset.panel) {
         item.classList.remove("active");
         if (item.dataset.panel === panelId) {
@@ -421,13 +452,16 @@ class QuillEditorUI {
       }
     });
 
-    // Update sidebar panels
+    // Update sidebar panel content visibility
     this.sidebarPanels.forEach((panel) => {
       panel.classList.remove("active");
       if (panel.id === `${panelId}-panel`) {
         panel.classList.add("active");
       }
     });
+
+    // Save state to session
+    this.saveSession();
   }
 
   createNewTab(

@@ -127,6 +127,7 @@ body {
   flex-direction: column;
   border-right: 1px solid #2d2d30;
   overflow: hidden;
+  transition: width 0.1s ease-in-out;
 }
 
 .sidebar-panel {

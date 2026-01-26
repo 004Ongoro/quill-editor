@@ -43,15 +43,24 @@ function streamCommand(command, args, cwd, eventName) {
 
 function createWindow() {
   const session = loadSession();
+  const iconPath =
+    process.platform === "win32"
+      ? path.join(__dirname, "assets/icons/icon.ico")
+      : path.join(__dirname, "assets/icons/icon.png");
 
   // Restore window position and size from session
   const windowState = session.layout?.windowState || {
     width: 1200,
     height: 800,
+    icon: iconPath,
     x: undefined,
     y: undefined,
     isMaximized: false,
   };
+
+  if (process.platform === "darwin") {
+    app.dock.setIcon(path.join(__dirname, "assets/icons/icon.png"));
+  }
 
   mainWindow = new BrowserWindow({
     width: windowState.width,
