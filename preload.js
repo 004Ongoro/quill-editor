@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld("electronAPI", {
+  invoke: (channel, data) => ipcRenderer.invoke(channel, data),
   // File operations
   writeFile: (path, content) =>
     ipcRenderer.invoke("write-file", { path, content }),
